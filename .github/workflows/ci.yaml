@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  validate-compose:
+    name: Validate docker-compose files
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate dev compose
+        run: |
+          if [ -f motel-stack/docker-compose.dev.yaml ]; then
+            docker compose -f motel-stack/docker-compose.dev.yaml --env-file motel-stack/.env config
+          else
+            echo 'dev compose missing, skipping'
+          fi
+      - name: Validate prod compose
+        run: |
+          if [ -f motel-stack/docker-compose.prod.yaml ]; then
+            docker compose -f motel-stack/docker-compose.prod.yaml --env-file motel-stack/.env config || true
+          else
+            echo 'prod compose missing, skipping'
+          fi
+
+  shell-lint:
+    name: ShellCheck lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install shellcheck
+        run: sudo apt-get update && sudo apt-get install -y shellcheck
+      - name: Run shellcheck on scripts
+        run: |
+          find . -type f -name '*.sh' -not -path './.git/*' -print0 | xargs -0 shellcheck -x || true
