@@ -1,0 +1,5 @@
+http://localhost:8000 {
+    reverse_proxy /motel-pos/* motel-pos:8000
+    reverse_proxy /api/* motel-pos:8000
+    reverse_proxy /room-pulse/* room-pulse:8000
+}

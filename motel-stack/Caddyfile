@@ -1,0 +1,19 @@
+{$SITE_ADDRESS}
+
+handle_path / {
+  root * /srv
+  file_server
+}
+
+tls internal
+
+reverse_proxy /* {
+  @motel host_regexp("{host:motel-pos.*}")
+  @room host_regexp("{host:.*garage.*}")
+  handle @motel {
+    reverse_proxy motel-pos:80
+  }
+  handle @room {
+    reverse_proxy room-pulse:80
+  }
+}
