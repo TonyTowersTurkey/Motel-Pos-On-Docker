@@ -1,0 +1,52 @@
+{% extends "maintenance/base.html" %}
+
+{% block maintenance_content %}
+  <section class="maintenance-card" style="margin-bottom:18px">
+    <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap">
+      <div>
+        <div class="maintenance-label">Room Management</div>
+        <h2>Assign room targets for maintenance</h2>
+      </div>
+      <div class="button-row">
+        <button class="maintenance-btn primary" type="button">Add Room Metadata</button>
+        <button class="maintenance-btn secondary" type="button">Assign Room Group</button>
+        <button class="maintenance-btn ghost" type="button">Refresh Rooms</button>
+      </div>
+    </div>
+    <div class="maintenance-chip-row" style="margin-top:10px">
+      <button class="maintenance-chip" type="button">All rooms</button>
+      <button class="maintenance-chip" type="button">Selected rooms</button>
+      <button class="maintenance-chip" type="button">Room group</button>
+      <button class="maintenance-chip" type="button">Floor</button>
+      <button class="maintenance-chip" type="button">Building</button>
+      <button class="maintenance-chip" type="button">Room type</button>
+    </div>
+  </section>
+
+  <section class="maintenance-card">
+    <table class="maintenance-table">
+      <thead>
+        <tr><th>Room</th><th>Building</th><th>Floor</th><th>Type</th><th>Active</th><th>Out of Service</th><th>Actions</th></tr>
+      </thead>
+      <tbody>
+        {% for room in rooms %}
+        <tr>
+          <td>{{ room.room }}</td>
+          <td>{{ room.building }}</td>
+          <td>{{ room.floor }}</td>
+          <td>{{ room.type }}</td>
+          <td>{% if room.active %}Yes{% else %}No{% endif %}</td>
+          <td>{% if room.out %}Yes{% else %}No{% endif %}</td>
+          <td>
+            <div class="button-row">
+              <button class="maintenance-btn primary" type="button">Edit</button>
+              <button class="maintenance-btn secondary" type="button">Assign PM</button>
+              <button class="maintenance-btn ghost" type="button">View History</button>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+{% endblock %}

@@ -1,0 +1,306 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Training · {{ app_name }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/app.css') }}?v=33">
+  </head>
+  <body>
+    {% include "_page_header.html" %}
+    <main class="shell">
+      <header class="topbar">
+        <div>
+          <h1>Training</h1>
+          <p>Generate room ROI crops from archived camera screenshots.</p>
+        </div>
+      </header>
+
+      <section class="panel training-generation-panel" data-collapsible-id="training-crops">
+        <div class="panel-heading">
+          <h2>Training Crops</h2>
+          <p>Process every archived screenshot for cameras that have rooms with valid ROIs.</p>
+        </div>
+        <div class="training-generation-actions">
+          <button id="generate-training-crops" class="button" type="button">
+            Generate Crop Images
+          </button>
+          <p id="crop-generation-message" class="form-message" aria-live="polite"></p>
+        </div>
+        <details id="crop-generation-log" class="generation-log">
+          <summary>
+            <span class="generation-log-title">
+              <span class="generation-log-chevron" aria-hidden="true">&#9654;</span>
+              Generation Log
+            </span>
+            <span id="crop-generation-log-count">No run yet</span>
+          </summary>
+          <pre id="crop-generation-log-output">Run crop generation to see image activity.</pre>
+        </details>
+      </section>
+
+      <section class="panel batch-approval-panel" data-collapsible-id="batch-approval">
+        <div class="panel-heading">
+          <h2>Batch Approval</h2>
+          <p>Approve high-confidence Open and Closed preliminary labels. Unsure predictions are always left for manual review.</p>
+        </div>
+        <div class="batch-approval-controls">
+          <label class="batch-threshold-control" for="batch-confidence-threshold">
+            <span>Minimum Confidence <output id="batch-confidence-value" for="batch-confidence-threshold">99.0%</output></span>
+            <input id="batch-confidence-threshold" type="range" min="50" max="100" step="0.1" value="99">
+          </label>
+          <label for="batch-room-filter">
+            Room Number
+            <select id="batch-room-filter">
+              <option value="">All rooms</option>
+            </select>
+          </label>
+        </div>
+        <div class="batch-preview-stats" aria-live="polite">
+          <div><strong id="batch-eligible-count">—</strong><span>Eligible</span></div>
+          <div><strong id="batch-open-count">—</strong><span>Open</span></div>
+          <div><strong id="batch-closed-count">—</strong><span>Closed</span></div>
+          <div><strong id="batch-remaining-count">—</strong><span>Manual Review</span></div>
+        </div>
+        <div class="batch-approval-actions">
+          <button id="approve-label-batch" class="button" type="button" disabled>Approve Matching Images</button>
+          <button id="undo-label-batch" class="button secondary" type="button" disabled>Undo Latest Batch</button>
+          <p id="batch-approval-message" class="form-message" aria-live="polite">Loading batch preview...</p>
+        </div>
+      </section>
+
+      <section class="panel training-labeling-panel" data-collapsible-id="unlabeled-crops">
+        <div class="panel-heading split-heading">
+          <div>
+            <h2>Crop Review</h2>
+            <p id="unlabeled-crop-summary">Loading crops that need review...</p>
+          </div>
+          <div class="unlabeled-heading-actions">
+            <label>
+              Door Label
+              <select id="door-label-filter">
+                <option value="">Needs any label</option>
+                <option value="missing">Missing door label</option>
+                <option value="open">Open</option>
+                <option value="closed">Closed</option>
+                <option value="partial">Partial</option>
+                <option value="unsure">Unsure</option>
+                <option value="bad">Bad image</option>
+              </select>
+            </label>
+            <label>
+              Vehicle Label
+              <select id="vehicle-label-filter">
+                <option value="">Needs any label</option>
+                <option value="missing">Missing vehicle label</option>
+                <option value="present">Present</option>
+                <option value="absent">Absent</option>
+                <option value="not_observable">Not observable</option>
+                <option value="unsure">Unsure</option>
+              </select>
+            </label>
+            <label>
+              Preliminary Status
+              <select id="unlabeled-status-filter">
+                <option value="">All statuses</option>
+                <option value="open">Open</option>
+                <option value="closed">Closed</option>
+              </select>
+            </label>
+            <label>
+              Room Number
+              <select id="unlabeled-room-filter">
+                <option value="">All rooms</option>
+              </select>
+            </label>
+            <button id="refresh-unlabeled-crops" class="button secondary" type="button">
+              Refresh
+            </button>
+          </div>
+        </div>
+
+        <div class="label-progress-stats" aria-live="polite">
+          <div><strong id="label-progress-total">—</strong><span>Total crops</span></div>
+          <div><strong id="label-progress-door">—</strong><span>Door labeled</span></div>
+          <div><strong id="label-progress-vehicle">—</strong><span>Vehicle labeled</span></div>
+          <div><strong id="label-progress-complete">—</strong><span>Fully labeled</span></div>
+          <div><strong id="label-progress-review">—</strong><span>Needs review</span></div>
+        </div>
+
+        <p id="unlabeled-crop-empty" class="empty-gallery" hidden></p>
+        <div id="labeling-workspace" class="labeling-workspace" hidden>
+          <div class="active-crop-card">
+            <div class="active-crop-image-wrap">
+              <img id="active-crop-image" src="" alt="Crop awaiting a label">
+            </div>
+            <div class="active-crop-details">
+              <strong id="active-crop-room"></strong>
+              <span id="active-crop-camera"></span>
+              <time id="active-crop-time"></time>
+              <span id="active-crop-preliminary" class="preliminary-suggestion">
+                Preliminary label pending...
+              </span>
+              <span id="active-crop-labels" class="active-label-summary"></span>
+            </div>
+          </div>
+
+          <div class="labeling-controls" aria-label="Crop labels">
+            <fieldset class="label-dimension">
+              <legend>Door state</legend>
+              <button id="confirm-preliminary-label" class="button label-action preliminary-confirm" type="button" disabled>
+                <span id="confirm-preliminary-text">Confirm Preliminary</span> <kbd>Space</kbd>
+              </button>
+              <button class="button label-action open-label" type="button" data-crop-label="open">Open <kbd>O</kbd></button>
+              <button class="button label-action closed-label" type="button" data-crop-label="closed">Closed <kbd>C</kbd></button>
+              <button class="button label-action partial-label" type="button" data-crop-label="partial">Partial <kbd>P</kbd></button>
+              <button class="button label-action unsure-label" type="button" data-crop-label="unsure">Unsure <kbd>U</kbd></button>
+              <div class="label-run-actions" aria-label="Label the next eight door states for this room">
+                <button class="button label-action open-run-label" type="button" data-crop-run-label="open">Open ×8 <kbd>⇧O</kbd></button>
+                <button class="button label-action closed-run-label" type="button" data-crop-run-label="closed">Closed ×8 <kbd>⇧C</kbd></button>
+                <button class="button label-action partial-run-label" type="button" data-crop-run-label="partial">Partial ×8 <kbd>⇧P</kbd></button>
+              </div>
+              <button class="button label-action bad-label" type="button" data-crop-label="bad">Bad Image <kbd>B</kbd></button>
+            </fieldset>
+            <fieldset class="label-dimension">
+              <legend>Vehicle visibility</legend>
+              <button class="button label-action vehicle-present-label" type="button" data-vehicle-label="present">Present <kbd>V</kbd></button>
+              <button class="button label-action vehicle-absent-label" type="button" data-vehicle-label="absent">Absent <kbd>N</kbd></button>
+              <button class="button label-action vehicle-hidden-label" type="button" data-vehicle-label="not_observable">Not observable <kbd>X</kbd></button>
+              <button class="button label-action unsure-label" type="button" data-vehicle-label="unsure">Unsure <kbd>?</kbd></button>
+              <div class="label-run-actions" aria-label="Label the next eight vehicle states for this room">
+                <button class="button label-action" type="button" data-vehicle-run-label="present">Present ×8 <kbd>⇧V</kbd></button>
+                <button class="button label-action" type="button" data-vehicle-run-label="absent">Absent ×8 <kbd>⇧N</kbd></button>
+                <button class="button label-action" type="button" data-vehicle-run-label="not_observable">Not observable ×8 <kbd>⇧X</kbd></button>
+              </div>
+            </fieldset>
+            <button id="skip-crop" class="button secondary label-action" type="button">
+              Skip <kbd>S</kbd>
+            </button>
+            <button id="undo-crop-label" class="button secondary label-action" type="button" disabled>
+              Undo Last Label
+            </button>
+          </div>
+          <p id="labeling-message" class="form-message" aria-live="polite"></p>
+          <p class="keyboard-hint">Door: Space Confirm · O Open · C Closed · P Partial · U Unsure · B Bad · Shift for ×8. Vehicle: V Present · N Absent · X Not observable · ? Unsure · Shift for ×8. S Skip.</p>
+        </div>
+
+        <div id="unlabeled-crop-list" class="unlabeled-crop-list" aria-label="Unlabeled crop images"></div>
+        <button id="load-more-crops" class="button secondary load-more-crops" type="button" hidden>
+          Load More
+        </button>
+      </section>
+
+      <dialog id="batch-approval-dialog" class="confirmation-dialog">
+        <form method="dialog">
+          <h2>Confirm Batch Approval</h2>
+          <p id="batch-confirmation-summary"></p>
+          <p class="dialog-warning">This applies the model's preliminary Open or Closed label to every matching unlabeled image.</p>
+          <div class="dialog-actions">
+            <button class="button secondary" value="cancel">Cancel</button>
+            <button id="confirm-label-batch" class="button" value="default">Approve Batch</button>
+          </div>
+        </form>
+      </dialog>
+
+      <section class="panel dataset-export-panel" data-collapsible-id="dataset-export">
+        <div class="panel-heading">
+          <h2>Curated Dataset Export</h2>
+          <p>Build a versioned, deduplicated dataset from reviewed labels. Difficult and corrected images are prioritized while routine scenes are sampled.</p>
+        </div>
+        <div class="dataset-curation-controls">
+          <div class="dataset-control-field">
+            <div class="dataset-field-label"><label for="export-mode">Export mode</label><button class="dataset-help-button" type="button" data-dataset-help="export-mode" aria-label="Help for export mode">?</button></div>
+            <select id="export-mode">
+              <option value="door">Door-state dataset</option>
+              <option value="vehicle">Vehicle-presence dataset</option>
+              <option value="separate">Both as separate datasets</option>
+              <option value="multitask">Multi-task manifest</option>
+            </select>
+          </div>
+          <div class="dataset-control-field">
+            <div class="dataset-field-label"><label for="export-captured-from">Captured from</label><button class="dataset-help-button" type="button" data-dataset-help="captured-from" aria-label="Help for captured from date">?</button></div>
+            <input id="export-captured-from" type="date">
+          </div>
+          <div class="dataset-control-field">
+            <div class="dataset-field-label"><label for="export-captured-through">Captured through</label><button class="dataset-help-button" type="button" data-dataset-help="captured-through" aria-label="Help for captured through date">?</button></div>
+            <input id="export-captured-through" type="date">
+          </div>
+          <div class="dataset-control-field">
+            <div class="dataset-field-label"><label for="export-low-confidence">Low-confidence cutoff</label><button class="dataset-help-button" type="button" data-dataset-help="low-confidence" aria-label="Help for low-confidence cutoff">?</button></div>
+            <span class="input-with-suffix"><input id="export-low-confidence" type="number" min="50" max="100" step="1" value="80"><span>%</span></span>
+          </div>
+          <div class="dataset-control-field">
+            <div class="dataset-field-label"><label for="export-probability-margin">Small probability margin</label><button class="dataset-help-button" type="button" data-dataset-help="probability-margin" aria-label="Help for probability margin">?</button></div>
+            <span class="input-with-suffix"><input id="export-probability-margin" type="number" min="0" max="100" step="1" value="20"><span>%</span></span>
+          </div>
+          <div class="dataset-control-field">
+            <div class="dataset-field-label"><label for="export-random-percent">Routine sample</label><button class="dataset-help-button" type="button" data-dataset-help="routine-sample" aria-label="Help for routine sample">?</button></div>
+            <span class="input-with-suffix"><input id="export-random-percent" type="number" min="0" max="100" step="1" value="20"><span>%</span></span>
+          </div>
+          <div class="dataset-control-field">
+            <div class="dataset-field-label"><label for="export-duplicate-window">Duplicate window</label><button class="dataset-help-button" type="button" data-dataset-help="duplicate-window" aria-label="Help for duplicate window">?</button></div>
+            <span class="input-with-suffix"><input id="export-duplicate-window" type="number" min="0" max="1440" step="1" value="30"><span>min</span></span>
+          </div>
+          <div class="dataset-control-field">
+            <div class="dataset-field-label"><label for="export-perceptual-distance">Visual match distance</label><button class="dataset-help-button" type="button" data-dataset-help="visual-distance" aria-label="Help for visual match distance">?</button></div>
+            <input id="export-perceptual-distance" type="number" min="0" max="64" step="1" value="6">
+          </div>
+          <div class="dataset-control-field">
+            <div class="dataset-field-label"><label for="export-validation-percent">Validation split</label><button class="dataset-help-button" type="button" data-dataset-help="validation-split" aria-label="Help for validation split">?</button></div>
+            <span class="input-with-suffix"><input id="export-validation-percent" type="number" min="0" max="40" step="1" value="15"><span>%</span></span>
+          </div>
+          <div class="dataset-control-field">
+            <div class="dataset-field-label"><label for="export-test-percent">Initial fixed test split</label><button class="dataset-help-button" type="button" data-dataset-help="test-split" aria-label="Help for initial fixed test split">?</button></div>
+            <span class="input-with-suffix"><input id="export-test-percent" type="number" min="5" max="30" step="1" value="15"><span>%</span></span>
+          </div>
+          <div class="dataset-control-field dataset-balance-control">
+            <div class="dataset-field-label"><label for="export-minimum-class-percent">Door minimum-to-largest ratio <output id="export-minimum-class-value" for="export-minimum-class-percent">40%</output></label><button class="dataset-help-button" type="button" data-dataset-help="class-balance" aria-label="Help for door class balance">?</button></div>
+            <input id="export-minimum-class-percent" type="range" min="0" max="50" step="1" value="40">
+            <small>Limits Open, Closed, and Partial so no class exceeds 2.5× the smallest class at 40%. The fixed test benchmark is never rebalanced.</small>
+          </div>
+          <div class="dataset-control-field dataset-balance-control">
+            <div class="dataset-field-label"><label for="export-vehicle-minimum-class-percent">Vehicle minimum-to-largest ratio <output id="export-vehicle-minimum-class-value" for="export-vehicle-minimum-class-percent">40%</output></label><button class="dataset-help-button" type="button" data-dataset-help="vehicle-class-balance" aria-label="Help for vehicle class balance">?</button></div>
+            <input id="export-vehicle-minimum-class-percent" type="range" min="0" max="50" step="1" value="40">
+            <small>Balances Present and Absent independently. Not Observable and Unsure remain masked or excluded.</small>
+          </div>
+        </div>
+        <fieldset class="dataset-priority-options">
+          <legend>Always include after review</legend>
+          <div class="dataset-priority-option"><label><input id="export-include-low-confidence" type="checkbox" checked> Low-confidence predictions</label><button class="dataset-help-button" type="button" data-dataset-help="include-low-confidence" aria-label="Help for including low-confidence predictions">?</button></div>
+          <div class="dataset-priority-option"><label><input id="export-include-misclassified" type="checkbox" checked> Corrected misclassifications</label><button class="dataset-help-button" type="button" data-dataset-help="include-misclassified" aria-label="Help for including corrected misclassifications">?</button></div>
+          <div class="dataset-priority-option"><label><input id="export-include-edge-cases" type="checkbox" checked> Visual edge cases</label><button class="dataset-help-button" type="button" data-dataset-help="include-edge-cases" aria-label="Help for including visual edge cases">?</button></div>
+        </fieldset>
+        <div class="dataset-preview-heading">
+          <div>
+            <h3>Export Preview</h3>
+            <p id="dataset-preview-message" aria-live="polite">Calculating image counts...</p>
+          </div>
+          <button id="refresh-dataset-preview" class="button secondary" type="button">Refresh Counts</button>
+        </div>
+        <div id="dataset-preview-task-counts" class="dataset-task-preview" aria-live="polite"></div>
+        <p class="dataset-benchmark-note">Each export mode creates and reuses its own persistent benchmark. Within a combined export, a camera/time group always stays in the same split for both tasks.</p>
+        <div class="dataset-export-actions">
+          <button id="export-training-dataset" class="button" type="button">
+            Export Dataset
+          </button>
+          <a id="download-training-dataset" class="button secondary" href="#" download hidden>
+            Download ZIP
+          </a>
+        </div>
+        <p id="dataset-export-message" class="form-message" aria-live="polite"></p>
+      </section>
+      <dialog id="dataset-help-dialog" class="confirmation-dialog dataset-help-dialog" aria-labelledby="dataset-help-title">
+        <form method="dialog">
+          <div class="dataset-help-heading">
+            <h2 id="dataset-help-title"></h2>
+            <button class="dataset-help-close" value="close" aria-label="Close help">×</button>
+          </div>
+          <p id="dataset-help-text"></p>
+          <div class="dialog-actions"><button class="button" value="close">Got it</button></div>
+        </form>
+      </dialog>
+    </main>
+    <script src="{{ url_for('static', path='/js/collapsible_sections.js') }}?v=1"></script>
+    <script src="{{ url_for('static', path='/js/training.js') }}?v=19"></script>
+  </body>
+</html>

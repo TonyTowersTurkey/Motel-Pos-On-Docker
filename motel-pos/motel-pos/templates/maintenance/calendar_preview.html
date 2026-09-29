@@ -1,0 +1,49 @@
+{% extends "maintenance/base.html" %}
+
+{% block maintenance_content %}
+  <section class="maintenance-card" style="margin-bottom:18px">
+    <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap">
+      <div>
+        <div class="maintenance-label">PM Calendar Preview</div>
+        <h2>Spread planned maintenance across days</h2>
+        <p style="color:var(--maintenance-muted)">This preview shows room batches, estimated labor load, and a conflict indicator for overloaded days.</p>
+      </div>
+      <div class="button-row">
+        <button class="maintenance-btn primary" type="button">Regenerate Preview</button>
+        <button class="maintenance-btn secondary" type="button">Spread Across Days</button>
+        <button class="maintenance-btn warn" type="button">Resolve Conflicts</button>
+        <a class="maintenance-btn ghost" href="{% url 'maintenance:maintenance-planned' %}">Back to Templates</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="maintenance-calendar">
+    {% for day in preview_days %}
+      <div class="maintenance-day {% if day.conflict %}conflict{% endif %}">
+        <div class="day">{{ day.date }}</div>
+        <div class="meta">Rooms {{ day.rooms }}</div>
+        <div class="maintenance-kv">
+          <div class="row"><span>Estimated load</span><strong>{{ day.loads }}</strong></div>
+          <div class="row"><span>Work orders</span><strong>5</strong></div>
+          <div class="row"><span>Conflict</span><strong>{% if day.conflict %}Yes{% else %}No{% endif %}</strong></div>
+        </div>
+        <div class="button-row" style="margin-top:14px">
+          <button class="maintenance-btn good" type="button">Open Day</button>
+          <button class="maintenance-btn ghost" type="button">Adjust</button>
+        </div>
+      </div>
+    {% endfor %}
+  </section>
+
+  <section class="maintenance-card" style="margin-top:18px">
+    <div class="maintenance-label">Preview Summary</div>
+    <div class="maintenance-chip-row">
+      <span class="maintenance-chip">Upcoming PM dates</span>
+      <span class="maintenance-chip">Rooms affected</span>
+      <span class="maintenance-chip">Work orders created</span>
+      <span class="maintenance-chip">Estimated labor/day</span>
+      <span class="maintenance-chip">Conflict check</span>
+      <span class="maintenance-chip">Overloaded days</span>
+    </div>
+  </section>
+{% endblock %}

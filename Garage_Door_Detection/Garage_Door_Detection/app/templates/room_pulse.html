@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Room Pulse · {{ app_name }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/app.css') }}?v=27">
+  </head>
+  <body>
+    {% include "_page_header.html" %}
+    <main class="shell pulse-shell">
+      <header class="topbar pulse-topbar">
+        <div>
+          <p class="pulse-eyebrow">Outbound room-state relay</p>
+          <h1>Room Pulse</h1>
+          <p>Keep another system in rhythm with confirmed garage-door states.</p>
+        </div>
+        <div id="pulse-status-badge" class="pulse-status-badge offline"><span></span> Loading</div>
+      </header>
+
+      <section class="panel pulse-config-panel" data-collapsible-id="room-pulse-config">
+        <div class="panel-heading split-heading">
+          <div>
+            <h2>Pulse Route</h2>
+            <p>Send all active rooms in one signed, retryable JSON request.</p>
+          </div>
+          <label class="pulse-master-switch">
+            <input id="pulse-enabled" type="checkbox">
+            <span>Relay enabled</span>
+          </label>
+        </div>
+
+        <form id="pulse-config-form" class="pulse-config-form">
+          <label class="pulse-wide-field">
+            Webhook destination
+            <input id="pulse-endpoint-url" type="url" placeholder="https://example.com/api/room-states">
+            <small>The receiver that accepts Room Pulse JSON posts.</small>
+          </label>
+          <label class="pulse-wide-field">
+            Public app URL <span class="optional-label">optional</span>
+            <input id="pulse-public-base-url" type="url" placeholder="https://garage.example.com">
+            <small>Used to turn crop paths into accessible image URLs.</small>
+          </label>
+          <label>
+            Heartbeat interval
+            <div class="input-with-suffix">
+              <input id="pulse-interval" type="number" min="10" max="86400" value="60" required>
+              <span>seconds</span>
+            </div>
+          </label>
+          <label>
+            Request timeout
+            <div class="input-with-suffix">
+              <input id="pulse-timeout" type="number" min="1" max="60" value="10" required>
+              <span>seconds</span>
+            </div>
+          </label>
+          <label class="pulse-wide-field">
+            Bearer token <span id="pulse-token-state" class="optional-label">optional</span>
+            <input id="pulse-token" type="password" autocomplete="new-password" placeholder="Leave blank to keep the saved token">
+          </label>
+          <label class="pulse-check-option">
+            <input id="pulse-send-on-change" type="checkbox" checked>
+            <span><strong>Beat on change</strong><small>Send immediately when a confirmed room state changes.</small></span>
+          </label>
+          <label class="pulse-check-option">
+            <input id="pulse-include-images" type="checkbox" checked>
+            <span><strong>Include crop links</strong><small>Include the latest crop path and public URL for each room.</small></span>
+          </label>
+          <label id="pulse-clear-token-wrap" class="pulse-check-option" hidden>
+            <input id="pulse-clear-token" type="checkbox">
+            <span><strong>Remove saved token</strong><small>Future deliveries will be sent without Authorization.</small></span>
+          </label>
+          <div class="pulse-form-actions pulse-wide-field">
+            <button class="button" type="submit">Save Pulse Route</button>
+            <button id="pulse-send-test" class="button secondary" type="button">Send Test Pulse</button>
+            <p id="pulse-form-message" class="form-message" aria-live="polite"></p>
+          </div>
+        </form>
+      </section>
+
+      <section class="panel pulse-history-panel" data-collapsible-id="room-pulse-history">
+        <div class="panel-heading split-heading">
+          <div>
+            <h2>Pulse Trail</h2>
+            <p id="pulse-history-summary">Loading delivery history...</p>
+          </div>
+          <button id="pulse-refresh-history" class="button secondary" type="button">Refresh</button>
+        </div>
+        <div class="pulse-history-table-wrap">
+          <table class="pulse-history-table">
+            <thead><tr><th>Time</th><th>Signal</th><th>Rooms</th><th>Result</th><th>Attempts</th></tr></thead>
+            <tbody id="pulse-history-body"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+    <script src="{{ url_for('static', path='/js/collapsible_sections.js') }}?v=1"></script>
+    <script src="{{ url_for('static', path='/js/room_pulse.js') }}?v=1"></script>
+  </body>
+</html>

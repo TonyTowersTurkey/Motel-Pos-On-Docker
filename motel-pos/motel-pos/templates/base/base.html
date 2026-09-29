@@ -1,0 +1,296 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{% block title %}Motel Occupancy{% endblock %}</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="shortcut icon" href="/favicon.svg" type="image/svg+xml">
+<style>
+:root {
+  --bg: #0f172a; --card: #1e293b; --border: #334155;
+  --text: #e2e8f0; --muted: #94a3b8; --accent: #3b82f6;
+  --green: #22c55e; --yellow: #eab308; --red: #ef4444; --orange: #f97316;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+.header { background: linear-gradient(135deg, #1e3a5f, #0f172a); padding: 24px 32px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+.header h1 { font-size: 1.5rem; font-weight: 600; }
+.header .badge { font-size: 0.7rem; padding: 4px 10px; border-radius: 20px; background: var(--accent); color: #fff; margin-left: 8px; vertical-align: middle; }
+.header .status { display: flex; gap: 16px; font-size: 0.85rem; color: var(--muted); }
+.dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 4px; }
+.dot.green { background: var(--green); box-shadow: 0 0 6px var(--green); }
+.dot.red { background: var(--red); }
+
+.container { max-width: 1400px; margin: 0 auto; padding: 24px; display: grid; grid-template-columns: 1fr 380px; gap: 24px; }
+@media (max-width: 900px) { .container { grid-template-columns: 1fr; } }
+
+.card { background: var(--card); border-radius: 12px; border: 1px solid var(--border); padding: 20px; margin-bottom: 16px; }
+.card h3 { font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); margin-bottom: 14px; }
+
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 24px; }
+.stat-card { background: var(--card); border-radius: 12px; border: 1px solid var(--border); padding: 18px; text-align: center; }
+.stat-card .num { font-size: 2.2rem; font-weight: 700; margin-bottom: 4px; }
+.stat-card .label { font-size: 0.8rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+.num.occupied { color: var(--green); }
+.num.vacant { color: var(--red); }
+.num.maintenance { color: var(--yellow); }
+.num.error { color: var(--orange); }
+
+.room-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; }
+.room-card { background: var(--card); border-radius: 12px; border: 2px solid var(--border); padding: 18px; cursor: pointer; transition: all 0.2s; position: relative; }
+.room-card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.3); }
+.room-card.occupied { border-color: var(--green); }
+.room-card.vacant { border-color: var(--red); opacity: 0.7; }
+.room-card.maintenance { border-color: var(--yellow); }
+.room-card.error { border-color: var(--orange); }
+.room-card .room-num { font-size: 1.4rem; font-weight: 700; margin-bottom: 6px; }
+.room-card .room-state { font-size: 0.85rem; text-transform: capitalize; color: var(--muted); margin-bottom: 10px; }
+.room-card .room-details { font-size: 0.75rem; color: var(--muted); }
+.room-card .pulse { position: absolute; top: 12px; right: 12px; width: 10px; height: 10px; border-radius: 50%; }
+.room-card.occupied .pulse { background: var(--green); box-shadow: 0 0 8px var(--green); animation: pulse 2s infinite; }
+.room-card.vacant .pulse { background: var(--red); opacity: 0.4; }
+@keyframes pulse { 0%,100%{opacity:1}50%{opacity:0.4} }
+
+.sidebar .card { margin-bottom: 16px; }
+.btn { display: inline-block; padding: 8px 16px; border-radius: 8px; border: none; cursor: pointer; font-size: 0.85rem; font-weight: 500; transition: all 0.15s; margin: 4px 2px; }
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-primary:hover { background: #2563eb; }
+.btn-green { background: var(--green); color: #000; }
+.btn-red { background: var(--red); color: #fff; }
+.btn-yellow { background: var(--yellow); color: #000; }
+.btn-sm { padding: 5px 10px; font-size: 0.78rem; margin: 2px; }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.slider-group { margin: 16px 0; }
+.slider-group label { display: block; font-size: 0.8rem; color: var(--muted); margin-bottom: 6px; }
+.slider-group input[type=range] { width: 100%; accent-color: var(--accent); }
+.slider-val { text-align: center; font-size: 2rem; font-weight: 700; margin: 8px 0; }
+
+.log { max-height: 300px; overflow-y: auto; font-size: 0.78rem; font-family: 'Cascadia Code', monospace; }
+.log-entry { padding: 4px 0; border-bottom: 1px solid rgba(51,65,85,0.3); color: var(--muted); }
+.log-entry .time { color: var(--accent); margin-right: 6px; }
+.log-entry.success { color: var(--green); }
+.log-entry.error { color: var(--red); }
+
+.events-table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
+.events-table th { text-align: left; padding: 6px 8px; background: rgba(0,0,0,0.2); color: var(--muted); font-weight: 500; text-transform: uppercase; font-size: 0.7rem; }
+.events-table td { padding: 6px 8px; border-bottom: 1px solid rgba(51,65,85,0.2); }
+
+.report-links { display: flex; flex-direction: column; gap: 8px; }
+
+input[type=text], input[type=password] { width: calc(100% - 12px); padding: 5px 8px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg); color: var(--text); font-size: 0.8rem; margin-bottom: 6px; }
+input[type=text]:focus, input[type=password]:focus { border-color: var(--accent); outline: none; }
+
+.flash-messages { position: fixed; top: 20px; right: 20px; z-index: 9999; }
+.flash-msg { padding: 10px 20px; border-radius: 8px; margin-bottom: 8px; font-size: 0.85rem; }
+.flash-success { background: var(--green); color: #000; }
+.flash-error { background: var(--red); color: #fff; }
+
+/* Shared POS navigation shell */
+.pos-app-shell { min-height:100vh; display:grid; grid-template-columns:248px minmax(0,1fr); }
+.pos-main { min-width:0; min-height:100vh; }
+.pos-sidebar {
+  position:sticky; top:0; z-index:1100; height:100vh; overflow-y:auto;
+  display:flex; flex-direction:column; padding:18px 14px;
+  background:linear-gradient(180deg,#071426 0%,#0b1729 62%,#0c1b30 100%);
+  border-right:1px solid rgba(148,163,184,.18); box-shadow:10px 0 30px rgba(2,6,23,.16);
+}
+.pos-sidebar-brand { display:flex; align-items:center; gap:11px; padding:8px 10px 18px; color:#f8fafc; text-decoration:none; }
+.pos-sidebar-brand:hover { text-decoration:none; }
+.pos-brand-mark { width:38px; height:38px; display:grid; place-items:center; border-radius:11px; background:linear-gradient(135deg,#3b82f6,#1d4ed8); box-shadow:0 8px 20px rgba(37,99,235,.32); font-weight:900; }
+.pos-brand-copy { min-width:0; }
+.pos-brand-title { display:block; font-size:.98rem; font-weight:800; line-height:1.1; }
+.pos-brand-subtitle { display:block; margin-top:3px; color:#94a3b8; font-size:.68rem; text-transform:uppercase; letter-spacing:.12em; }
+.pos-nav-group { margin-top:10px; }
+.pos-nav-label { padding:0 11px 7px; color:#64748b; font-size:.66rem; font-weight:800; text-transform:uppercase; letter-spacing:.14em; }
+.pos-nav-list { list-style:none; display:grid; gap:4px; }
+.pos-nav-link { min-height:44px; display:flex; align-items:center; gap:11px; padding:10px 11px; border-radius:10px; color:#aebed3; font-size:.86rem; font-weight:650; text-decoration:none; transition:background .15s,color .15s,transform .15s; }
+.pos-nav-link:hover { color:#fff; background:rgba(59,130,246,.12); text-decoration:none; transform:translateX(2px); }
+.pos-nav-link.active { color:#fff; background:linear-gradient(135deg,rgba(59,130,246,.28),rgba(37,99,235,.16)); box-shadow:inset 3px 0 #60a5fa; }
+.pos-nav-icon { width:20px; height:20px; flex:0 0 20px; display:grid; place-items:center; }
+.pos-nav-icon svg { width:19px; height:19px; stroke:currentColor; fill:none; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+.pos-sidebar-footer { margin-top:auto; padding-top:18px; }
+.pos-account { padding:12px; border:1px solid rgba(148,163,184,.16); border-radius:12px; background:rgba(15,23,42,.62); }
+.pos-account-name { color:#f1f5f9; font-size:.84rem; font-weight:750; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.pos-account-role { margin-top:3px; color:#93c5fd; font-size:.68rem; font-weight:800; text-transform:uppercase; letter-spacing:.1em; }
+.pos-live-status { display:flex; align-items:center; gap:7px; margin-top:9px; color:#94a3b8; font-size:.7rem; font-weight:700; }
+.pos-live-dot { width:7px; height:7px; border-radius:50%; background:#f59e0b; }
+.pos-live-status.connected { color:#86efac; }
+.pos-live-status.connected .pos-live-dot { background:#22c55e; box-shadow:0 0 7px rgba(34,197,94,.8); }
+.pos-live-status.offline { color:#fca5a5; }
+.pos-live-status.offline .pos-live-dot { background:#ef4444; }
+.pos-logout-form { margin-top:10px; }
+.pos-logout { width:100%; min-height:38px; border:1px solid rgba(148,163,184,.2); border-radius:9px; background:rgba(148,163,184,.08); color:#cbd5e1; cursor:pointer; font:inherit; font-size:.76rem; font-weight:700; }
+.pos-logout:hover { background:rgba(239,68,68,.12); border-color:rgba(239,68,68,.32); color:#fecaca; }
+.pos-mobile-bar { display:none; }
+.pos-sidebar-overlay { display:none; }
+.pos-sidebar-close { display:none; }
+@media (max-width:1024px) {
+  .pos-app-shell { display:block; padding-top:58px; }
+  .pos-main { min-height:calc(100vh - 58px); }
+  .pos-mobile-bar { position:fixed; inset:0 0 auto 0; z-index:1080; height:58px; display:flex; align-items:center; justify-content:space-between; gap:12px; padding:0 14px; background:rgba(7,20,38,.96); border-bottom:1px solid rgba(148,163,184,.18); backdrop-filter:blur(14px); }
+  .pos-menu-button,.pos-sidebar-close { width:40px; height:40px; display:grid; place-items:center; border:1px solid rgba(148,163,184,.2); border-radius:10px; background:rgba(148,163,184,.08); color:#e2e8f0; cursor:pointer; }
+  .pos-menu-button svg,.pos-sidebar-close svg { width:21px; height:21px; stroke:currentColor; fill:none; stroke-width:2; }
+  .pos-mobile-title { flex:1; min-width:0; color:#f8fafc; font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .pos-mobile-role { color:#93c5fd; font-size:.66rem; font-weight:800; text-transform:uppercase; letter-spacing:.08em; }
+  .pos-sidebar { position:fixed; inset:0 auto 0 0; width:min(290px,86vw); height:100dvh; transform:translateX(-102%); transition:transform .2s ease; box-shadow:24px 0 60px rgba(2,6,23,.56); }
+  .pos-sidebar-close { position:absolute; top:16px; right:12px; }
+  .pos-sidebar-brand { padding-right:44px; }
+  .pos-sidebar-overlay { position:fixed; inset:0; z-index:1090; display:block; background:rgba(2,6,23,.68); opacity:0; visibility:hidden; transition:opacity .2s,visibility .2s; }
+  body.pos-nav-open { overflow:hidden; }
+  body.pos-nav-open .pos-sidebar { transform:translateX(0); }
+  body.pos-nav-open .pos-sidebar-overlay { opacity:1; visibility:visible; }
+}
+@media (prefers-reduced-motion:reduce) {
+  .pos-sidebar,.pos-sidebar-overlay,.pos-nav-link { transition:none; }
+}
+</style>
+{% block extra_css %}{% endblock %}
+<script>
+window.MOTEL_TIME_ZONE = 'America/Puerto_Rico';
+
+window.motelDate = value => {
+  if (value instanceof Date) return value;
+  if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return new Date(`${value}T12:00:00Z`);
+  }
+  return new Date(value);
+};
+
+window.motelFormat = (value, options) => {
+  const date = window.motelDate(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return new Intl.DateTimeFormat('en-PR', {
+    timeZone: window.MOTEL_TIME_ZONE,
+    hourCycle: 'h23',
+    ...options,
+  }).format(date);
+};
+
+window.motelFormatTime = (value, includeSeconds=false) => window.motelFormat(value, {
+  hour: '2-digit', minute: '2-digit', ...(includeSeconds ? {second: '2-digit'} : {}),
+});
+window.motelFormatDate = value => window.motelFormat(value, {
+  year: 'numeric', month: '2-digit', day: '2-digit',
+});
+window.motelFormatDateTime = (value, includeSeconds=false) => window.motelFormat(value, {
+  year: 'numeric', month: '2-digit', day: '2-digit',
+  hour: '2-digit', minute: '2-digit', ...(includeSeconds ? {second: '2-digit'} : {}),
+});
+window.motelFormatShortDateTime = value => window.motelFormat(value, {
+  month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit',
+});
+
+window.motelDateParts = (value=new Date()) => Object.fromEntries(
+  new Intl.DateTimeFormat('en-CA', {
+    timeZone: window.MOTEL_TIME_ZONE,
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+  }).formatToParts(window.motelDate(value)).filter(part => part.type !== 'literal').map(part => [part.type, part.value])
+);
+window.motelIsoDate = (value=new Date()) => {
+  const parts = window.motelDateParts(value);
+  return `${parts.year}-${parts.month}-${parts.day}`;
+};
+window.motelDateTimeInputValue = (value=new Date()) => {
+  const parts = window.motelDateParts(value);
+  return `${parts.year}-${parts.month}-${parts.day} ${parts.hour}:${parts.minute}`;
+};
+</script>
+</head>
+<body>
+{% if user.is_authenticated %}
+<div class="pos-app-shell">
+  {% include "base/sidebar.html" %}
+  <div class="pos-sidebar-overlay" data-pos-nav-close aria-hidden="true"></div>
+  <header class="pos-mobile-bar">
+    <button class="pos-menu-button" type="button" data-pos-nav-open aria-label="Open main navigation" aria-controls="posSidebar" aria-expanded="false">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+    </button>
+    <div class="pos-mobile-title">{% block mobile_title %}Motel POS{% endblock %}</div>
+    <div class="pos-mobile-role">{{ user.get_role_display }}</div>
+  </header>
+  <div class="pos-main" id="mainContent">
+{% else %}
+<div class="pos-main">
+{% endif %}
+{% block body %}{% endblock %}
+</div>
+{% if user.is_authenticated %}</div>{% endif %}
+
+<script src="https://unpkg.com/htmx.org@1.9.10"></script>
+{% if user.is_authenticated %}
+<script>
+(() => {
+  const body = document.body;
+  const openButton = document.querySelector('[data-pos-nav-open]');
+  const sidebar = document.getElementById('posSidebar');
+  const syncDrawerAccess = () => {
+    const closedMobileDrawer = window.innerWidth <= 1024 && !body.classList.contains('pos-nav-open');
+    sidebar?.toggleAttribute('inert', closedMobileDrawer);
+    sidebar?.setAttribute('aria-hidden', closedMobileDrawer ? 'true' : 'false');
+  };
+  const closeNav = () => {
+    body.classList.remove('pos-nav-open');
+    openButton?.setAttribute('aria-expanded', 'false');
+    syncDrawerAccess();
+  };
+  const openNav = () => {
+    body.classList.add('pos-nav-open');
+    openButton?.setAttribute('aria-expanded', 'true');
+    syncDrawerAccess();
+    document.querySelector('.pos-sidebar-close')?.focus();
+  };
+  openButton?.addEventListener('click', openNav);
+  document.querySelectorAll('[data-pos-nav-close]').forEach(el => el.addEventListener('click', closeNav));
+  document.querySelectorAll('.pos-sidebar a').forEach(el => el.addEventListener('click', closeNav));
+  document.addEventListener('keydown', event => { if (event.key === 'Escape') closeNav(); });
+  window.addEventListener('resize', () => { if (window.innerWidth > 1024) closeNav(); else syncDrawerAccess(); });
+  syncDrawerAccess();
+})();
+
+(() => {
+  const status = document.getElementById('posLiveStatus');
+  const statusText = status?.querySelector('[data-live-label]');
+  let refreshTimer = null;
+  let pendingDetail = null;
+
+  const setStatus = (state, label) => {
+    if (!status) return;
+    status.classList.remove('connected', 'offline');
+    if (state) status.classList.add(state);
+    if (statusText) statusText.textContent = label;
+  };
+  const dispatchUpdate = detail => {
+    pendingDetail = detail;
+    if (document.hidden) return;
+    clearTimeout(refreshTimer);
+    refreshTimer = setTimeout(() => {
+      const latest = pendingDetail;
+      pendingDetail = null;
+      document.dispatchEvent(new CustomEvent('motel:dashboard-update', {detail: latest}));
+    }, 300);
+  };
+
+  const stream = new EventSource('/api/events/stream/');
+  stream.addEventListener('ready', () => setStatus('connected', 'Live updates connected'));
+  stream.addEventListener('dashboard.update', event => {
+    setStatus('connected', 'Live updates connected');
+    try { dispatchUpdate(JSON.parse(event.data)); } catch (error) { dispatchUpdate({}); }
+  });
+  stream.onerror = () => setStatus('offline', 'Live updates reconnecting…');
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && pendingDetail) dispatchUpdate(pendingDetail);
+  });
+  window.addEventListener('beforeunload', () => stream.close(), {once: true});
+})();
+</script>
+{% endif %}
+{% block extra_js %}{% endblock %}
+</body>
+</html>

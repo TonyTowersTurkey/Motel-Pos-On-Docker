@@ -1,0 +1,482 @@
+{% extends "base/base.html" %}
+
+{% block title %}Room Configuration — Motel Occupancy{% endblock %}
+{% block mobile_title %}Room Configuration{% endblock %}
+
+{% block body %}
+<style>
+.config-shell { max-width: 1500px; margin: 0 auto; padding: 24px; display: grid; grid-template-columns: minmax(0, 1fr) 420px; gap: 20px; }
+.config-actions { display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end; margin-bottom:14px; }
+.form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.field label { display:block; color: var(--muted); font-size: 0.76rem; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 5px; }
+.field input, .field textarea, .field select { width:100%; padding: 9px 10px; border-radius: 8px; border: 1px solid var(--border); background: #0f172a; color: var(--text); }
+.field textarea { min-height: 72px; resize: vertical; }
+.field.full { grid-column: 1 / -1; }
+.room-table-wrap { overflow-x:auto; }
+.room-table { width: 100%; border-collapse: collapse; font-size: 0.84rem; min-width: 760px; }
+.room-table th { text-align: left; padding: 8px; color: var(--muted); background: rgba(0,0,0,0.18); font-size: 0.72rem; text-transform: uppercase; }
+.room-table td { padding: 8px; border-bottom: 1px solid rgba(51,65,85,0.45); vertical-align: top; }
+.room-table tr.selected { background: rgba(59,130,246,0.14); }
+.vehicle-summary { padding: 9px 10px; border-radius: 8px; border: 1px solid var(--border); background: #0f172a; color: var(--text); font-size: 0.84rem; line-height: 1.45; }
+.login-box { max-width: 420px; margin: 42px auto; }
+.muted { color: var(--muted); }
+.search-row { display:flex; gap:8px; align-items:center; margin-bottom:12px; }
+.search-row input { flex:1; padding:9px 10px; border-radius:8px; border:1px solid var(--border); background:#0f172a; color:var(--text); }
+.editor-error { margin: 0 0 12px; padding: 10px 12px; border-radius: 10px; border: 1px solid rgba(239, 68, 68, 0.45); background: rgba(127, 29, 29, 0.2); color: #fecaca; display: none; }
+.editor-error strong { display: block; color: #fca5a5; margin-bottom: 4px; }
+@media (max-width: 980px) { .config-shell { grid-template-columns: 1fr; } .form-grid { grid-template-columns: 1fr; } .config-actions { justify-content:flex-start; } }
+</style>
+
+<div class="header">
+  <h1>Room Configuration<span class="badge">{% if debug %}DEV{% else %}PRO{% endif %}</span></h1>
+  <div class="status" id="healthStatus">
+    <span><span class="dot red"></span> Checking...</span>
+  </div>
+</div>
+
+<div class="login-box card" id="loginPanel" hidden>
+  <h3>Manager Login</h3>
+  <div class="field">
+    <label for="loginUsername">Username</label>
+    <input id="loginUsername" value="{{ default_username|default:'manager' }}" autocomplete="username">
+  </div>
+  <div class="field" style="margin-top:10px">
+    <label for="loginPassword">Password</label>
+    <input id="loginPassword" type="password" autocomplete="current-password">
+  </div>
+  <button class="btn btn-primary" onclick="login()" style="width:100%;margin-top:14px">Login</button>
+  <p class="muted" id="loginError" style="margin-top:10px"></p>
+</div>
+
+<div class="config-shell" id="appPanel" hidden>
+  <main>
+    <div class="config-actions">
+      <a href="{% url 'rooms_manager' %}" class="btn btn-sm btn-primary">Manager Overview</a>
+      <a href="{% url 'maintenance:maintenance-dashboard' %}" class="btn btn-sm btn-green">Maintenance Hub</a>
+      <a href="{% url 'admin:index' %}" class="btn btn-sm btn-yellow">Django Admin</a>
+      <button class="btn btn-sm btn-primary" onclick="loadRooms()">Refresh</button>
+    </div>
+
+    <div class="card">
+      <h3>Room Editor</h3>
+      <div class="editor-error" id="roomEditorError" role="alert" aria-live="polite"></div>
+      <div class="form-grid">
+        <div class="field"><label for="roomId">Room ID</label><input id="roomId" inputmode="numeric" pattern="[0-9]+" placeholder="1"></div>
+        <div class="field"><label for="roomNumber">Room Number</label><input id="roomNumber" placeholder="1"></div>
+        <div class="field"><label for="price">Price</label><input id="price" type="number" step="1" min="0" value="0"></div>
+        <div class="field"><label for="ac">AC</label><input id="ac" placeholder="split, window, none"></div>
+        <div class="field"><label for="tv">TV</label><input id="tv" placeholder="smart, basic, none"></div>
+        <div class="field"><label for="edificio">Edificio</label><input id="edificio" placeholder="E1"></div>
+        <div class="field"><label for="cuentaLuma">cuentaLuma</label><input id="cuentaLuma" type="number" step="1" min="0" value="0"></div>
+        <div class="field">
+          <label for="pricingTier">Pricing Tier</label>
+          <select id="pricingTier">
+            <option value="">Loading tiers...</option>
+          </select>
+        </div>
+        <div class="field"><label for="maxOccupants">Max Occupants</label><input id="maxOccupants" type="number" step="1" min="1" value="1"></div>
+        <div class="field"><label for="active">Active</label><select id="active"><option value="true">Active</option><option value="false">Inactive</option></select></div>
+        <div class="field"><label for="currentState">Current State</label><input id="currentState" value="vacant"></div>
+        <div class="field full">
+          <label>Current Vehicle</label>
+          <div class="vehicle-summary" id="currentVehicleSummary">No room selected.</div>
+        </div>
+        <div class="field full"><label for="notes">Notes</label><textarea id="notes"></textarea></div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px">
+        <button class="btn btn-primary" onclick="saveRoom()">Save Room</button>
+        <button class="btn btn-yellow" onclick="clearEditor()">New Room</button>
+        <button class="btn btn-red" onclick="deleteSelectedRoom()" id="deleteRoomBtn" disabled>Delete</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Rooms</h3>
+      <div class="search-row">
+        <input id="roomSearch" placeholder="Search room, building, AC, TV, vehicle..." oninput="renderRoomsTable()">
+      </div>
+      <div class="room-table-wrap">
+        <table class="room-table">
+          <thead><tr><th>Room</th><th>Price</th><th>AC</th><th>TV</th><th>Edificio</th><th>Luma</th><th>Vehicle</th><th></th></tr></thead>
+          <tbody id="roomsTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+
+  <aside class="sidebar">
+    <div class="card">
+      <h3>Summary</h3>
+      <p class="muted"><span id="roomCount">0</span> rooms loaded</p>
+      <p class="muted"><span id="activeCount">0</span> active</p>
+    </div>
+    <div class="card">
+      <h3>Activity Log</h3>
+      <div class="log" id="eventLog"></div>
+    </div>
+    <div class="card">
+      <h3>Account</h3>
+      <p class="muted" id="accountLabel">Signed in</p>
+      <button class="btn btn-sm btn-red" onclick="logout()">Logout</button>
+    </div>
+  </aside>
+</div>
+
+<script>
+const API = '/api/';
+let rooms = [];
+let pricingTiers = [];
+let selectedRoomId = null;
+
+function listResults(payload) {
+  if (Array.isArray(payload)) return payload;
+  if (payload && Array.isArray(payload.results)) return payload.results;
+  return [];
+}
+
+function token() { return localStorage.getItem('access_token'); }
+function csrfToken() {
+  return document.cookie.split('; ').find(row => row.startsWith('csrftoken='))?.split('=')[1] || '';
+}
+function authHeaders(extra={}) {
+  // This page is protected by Django's session. Do not let a stale JWT
+  // override the authenticated manager session in DRF.
+  return {...extra};
+}
+
+function apiErrorDetail(payload) {
+  if (!payload) return '';
+  if (typeof payload === 'string') return payload;
+  if (payload.detail) return payload.detail;
+  if (Array.isArray(payload.errors)) {
+    return payload.errors.map(error => {
+      const field = error.attr ? `${error.attr}: ` : '';
+      return `${field}${error.detail || error.code || 'Invalid value'}`;
+    }).join('; ');
+  }
+  if (typeof payload === 'object') {
+    return Object.entries(payload).map(([field, messages]) => {
+      const value = Array.isArray(messages) ? messages.join(', ') : String(messages);
+      return field === 'non_field_errors' ? value : `${field}: ${value}`;
+    }).join('; ');
+  }
+  return '';
+}
+
+function formatApiError(status, text) {
+  let detail = text || '';
+  try {
+    detail = apiErrorDetail(JSON.parse(text)) || detail;
+  } catch(e) {}
+  return detail ? `HTTP ${status}: ${detail}` : `HTTP ${status}`;
+}
+
+async function fetchJSON(path, opts={}) {
+  const headers = authHeaders(opts.headers || {});
+  const method = (opts.method || 'GET').toUpperCase();
+  if (opts.body && typeof opts.body === 'object') {
+    headers['Content-Type'] = 'application/json';
+    opts.body = JSON.stringify(opts.body);
+  }
+  if (!['GET', 'HEAD', 'OPTIONS', 'TRACE'].includes(method)) {
+    headers['X-CSRFToken'] = csrfToken();
+  }
+  const url = path.startsWith('http') ? path : API + path;
+  const res = await fetch(url, {...opts, headers, credentials: 'same-origin'});
+  if (res.status === 401) {
+    showLogin();
+    throw new Error('Manager login required');
+  }
+  if (res.status === 403) {
+    throw new Error('Your account does not have room configuration permission.');
+  }
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(formatApiError(res.status, text));
+  }
+  if (res.status === 204) return null;
+  return res.json();
+}
+
+async function fetchAllResults(path) {
+  const items = [];
+  let nextPath = path;
+  while (nextPath) {
+    const payload = await fetchJSON(nextPath);
+    if (Array.isArray(payload)) return payload;
+    items.push(...listResults(payload));
+    nextPath = payload?.next || null;
+  }
+  return items;
+}
+
+function renderPricingTierOptions(selectedCode='') {
+  const select = document.getElementById('pricingTier');
+  if (!select) return;
+  const current = selectedCode || select.value || '';
+  const options = ['<option value="">(No pricing tier)</option>'].concat(
+    pricingTiers.map(tier => {
+      const description = tier.description ? ` - ${escapeHtml(tier.description)}` : '';
+      const label = `${escapeHtml(tier.code)}${description}`;
+      return `<option value="${escapeHtml(tier.code)}">${label}</option>`;
+    })
+  );
+  select.innerHTML = options.join('');
+  select.value = current;
+}
+
+async function loadPricingTiers() {
+  try {
+    pricingTiers = await fetchAllResults('pricing-tiers/');
+    renderPricingTierOptions();
+  } catch (e) {
+    pricingTiers = [];
+    renderPricingTierOptions();
+    log(`Pricing tiers could not be loaded: ${e.message}`, 'error');
+  }
+}
+
+async function login() {
+  const username = document.getElementById('loginUsername').value.trim();
+  const password = document.getElementById('loginPassword').value;
+  document.getElementById('loginError').textContent = '';
+  try {
+    const data = await fetch(API + 'auth/login/', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({username, password})
+    }).then(async res => {
+      if (!res.ok) throw new Error((await res.json()).detail || `HTTP ${res.status}`);
+      return res.json();
+    });
+    localStorage.setItem('access_token', data.access);
+    localStorage.setItem('refresh_token', data.refresh);
+    localStorage.setItem('manager_user', data.user?.username || username);
+    showApp();
+    await loadRooms();
+  } catch(e) {
+    document.getElementById('loginError').textContent = e.message;
+  }
+}
+
+function logout() {
+  localStorage.removeItem('access_token');
+  localStorage.removeItem('refresh_token');
+  localStorage.removeItem('manager_user');
+  postLogout();
+}
+
+function postLogout() {
+  const form = document.createElement('form');
+  form.method = 'POST';
+  form.action = '/logout/';
+  const csrf = document.createElement('input');
+  csrf.type = 'hidden';
+  csrf.name = 'csrfmiddlewaretoken';
+  csrf.value = csrfToken();
+  form.appendChild(csrf);
+  document.body.appendChild(form);
+  form.submit();
+}
+
+function showLogin() {
+  window.location.href = '/login/?next=' + encodeURIComponent(window.location.pathname);
+}
+
+function showApp() {
+  document.getElementById('loginPanel').hidden = true;
+  document.getElementById('appPanel').hidden = false;
+  document.getElementById('accountLabel').textContent = 'Signed in as {{ user.username|escapejs }}';
+}
+
+function setEditorError(message='') {
+  const el = document.getElementById('roomEditorError');
+  if (!el) return;
+  if (!message) {
+    el.hidden = true;
+    el.textContent = '';
+    return;
+  }
+  el.hidden = false;
+  el.innerHTML = `<strong>Save blocked</strong><span>${escapeHtml(message)}</span>`;
+}
+
+async function loadRooms() {
+  rooms = (await fetchAllResults('rooms/')).sort(compareRooms);
+  document.getElementById('roomCount').textContent = rooms.length;
+  document.getElementById('activeCount').textContent = rooms.filter(room => room.active).length;
+  renderRoomsTable();
+  const requestedRoom = new URLSearchParams(window.location.search).get('room');
+  if (requestedRoom) {
+    editRoom(requestedRoom);
+  }
+}
+
+function renderRoomsTable() {
+  const search = document.getElementById('roomSearch').value.trim().toLowerCase();
+  const visibleRooms = search ? rooms.filter(room => [
+    room.room_number,
+    room.room_id,
+    room.edificio,
+    room.ac,
+    room.tv,
+    room.current_vehicle?.license_plate,
+    room.current_vehicle?.make,
+    room.current_vehicle?.model,
+    room.current_vehicle?.color,
+  ].some(value => String(value || '').toLowerCase().includes(search))) : rooms;
+  document.getElementById('roomsTableBody').innerHTML = visibleRooms.map(r => `<tr class="${r.room_id === selectedRoomId ? 'selected' : ''}">
+    <td>${escapeHtml(r.room_number || r.room_id)}</td>
+    <td>$${Number(r.price || 0)}</td>
+    <td>${escapeHtml(r.ac || '')}</td>
+    <td>${escapeHtml(r.tv || '')}</td>
+    <td>${escapeHtml(r.edificio || '')}</td>
+    <td>${Number(r.cuenta_luma || 0)}</td>
+    <td>${vehicleSummary(r.current_vehicle)}</td>
+    <td><button class="btn btn-sm btn-primary" onclick="editRoom('${escapeHtml(r.room_id)}')">Edit</button></td>
+  </tr>`).join('');
+}
+
+function editRoom(roomId) {
+  const room = rooms.find(r => r.room_id === roomId);
+  if (!room) return;
+  setEditorError('');
+  selectedRoomId = room.room_id;
+  document.getElementById('roomId').value = room.room_id || '';
+  document.getElementById('roomId').disabled = true;
+  document.getElementById('roomNumber').value = room.room_number || '';
+  document.getElementById('price').value = Number(room.price || 0);
+  document.getElementById('ac').value = room.ac || '';
+  document.getElementById('tv').value = room.tv || '';
+  document.getElementById('edificio').value = room.edificio || '';
+  document.getElementById('cuentaLuma').value = Number(room.cuenta_luma || 0);
+  document.getElementById('pricingTier').value = room.pricing_tier_code || '';
+  document.getElementById('maxOccupants').value = Number(room.max_occupants || 1);
+  document.getElementById('active').value = room.active ? 'true' : 'false';
+  document.getElementById('currentState').value = room.current_state || 'vacant';
+  document.getElementById('currentVehicleSummary').innerHTML = vehicleSummary(room.current_vehicle, 'No vehicle attached.');
+  document.getElementById('notes').value = room.notes || '';
+  document.getElementById('deleteRoomBtn').disabled = false;
+  renderRoomsTable();
+}
+
+function clearEditor() {
+  setEditorError('');
+  selectedRoomId = null;
+  document.getElementById('roomId').disabled = false;
+  ['roomId','roomNumber','ac','tv','edificio','pricingTier','notes'].forEach(id => document.getElementById(id).value = '');
+  renderPricingTierOptions();
+  document.getElementById('price').value = 0;
+  document.getElementById('cuentaLuma').value = 0;
+  document.getElementById('maxOccupants').value = 1;
+  document.getElementById('active').value = 'true';
+  document.getElementById('currentState').value = 'vacant';
+  document.getElementById('currentVehicleSummary').innerHTML = vehicleSummary(null, 'No room selected.');
+  document.getElementById('deleteRoomBtn').disabled = true;
+  renderRoomsTable();
+}
+
+function roomPayload() {
+  const roomId = document.getElementById('roomId').value.trim();
+  const roomNumber = document.getElementById('roomNumber').value.trim();
+  return {
+    room_id: roomId,
+    room_number: roomNumber || roomId,
+    price: Number.parseInt(document.getElementById('price').value || '0', 10),
+    ac: document.getElementById('ac').value.trim(),
+    tv: document.getElementById('tv').value.trim(),
+    edificio: document.getElementById('edificio').value.trim(),
+    cuenta_luma: Number.parseInt(document.getElementById('cuentaLuma').value || '0', 10),
+    pricing_tier_code: document.getElementById('pricingTier').value.trim(),
+    max_occupants: Number.parseInt(document.getElementById('maxOccupants').value || '1', 10),
+    active: document.getElementById('active').value === 'true',
+    current_state: document.getElementById('currentState').value.trim() || 'vacant',
+    notes: document.getElementById('notes').value
+  };
+}
+
+async function saveRoom() {
+  const payload = roomPayload();
+  setEditorError('');
+  if (!payload.room_id) {
+    setEditorError('Room ID is required');
+    log('Room ID is required', 'error');
+    return;
+  }
+  if (!/^\d+$/.test(payload.room_id)) {
+    log('Room ID must contain numbers only.', 'error');
+    return;
+  }
+  const existing = Boolean(selectedRoomId);
+  const path = existing ? `rooms/${encodeURIComponent(selectedRoomId)}/` : 'rooms/';
+  const method = existing ? 'PATCH' : 'POST';
+  try {
+    const saved = await fetchJSON(path, {method, body: payload});
+    selectedRoomId = saved.room_id;
+    log(`Saved room ${saved.room_number || saved.room_id}`, 'success');
+    await loadRooms();
+    editRoom(selectedRoomId);
+  } catch(e) {
+    setEditorError(e.message);
+    log(`Save failed: ${e.message}`, 'error');
+  }
+}
+
+async function deleteSelectedRoom() {
+  if (!selectedRoomId) return;
+  if (!confirm(`Delete ${selectedRoomId}?`)) return;
+  try {
+    await fetchJSON(`rooms/${encodeURIComponent(selectedRoomId)}/`, {method: 'DELETE'});
+    log(`Deleted ${selectedRoomId}`, 'success');
+    clearEditor();
+    await loadRooms();
+  } catch(e) {
+    log(`Delete failed: ${e.message}`, 'error');
+  }
+}
+
+async function checkHealth() {
+  try {
+    const h = await fetchJSON('health/');
+    const healthy = h.status === 'healthy';
+    document.getElementById('healthStatus').innerHTML = `<span><span class="dot ${healthy ? 'green' : 'red'}"></span> ${healthy ? 'Online' : 'Degraded'}</span>`;
+  } catch(e) {
+    document.getElementById('healthStatus').innerHTML = '<span><span class="dot red"></span> Offline</span>';
+  }
+}
+
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;', "'": '&#39;'}[ch]));
+}
+
+function vehicleSummary(vehicle, emptyText='No vehicle attached.') {
+  if (!vehicle) return escapeHtml(emptyText);
+  const parts = [];
+  if (vehicle.license_plate) parts.push(`Plate ${escapeHtml(vehicle.license_plate)}`);
+  const makeModel = [vehicle.make, vehicle.model].filter(Boolean).map(escapeHtml).join(' ');
+  if (makeModel) parts.push(makeModel);
+  if (vehicle.color) parts.push(escapeHtml(vehicle.color));
+  return parts.length ? parts.join(' · ') : escapeHtml(emptyText);
+}
+
+function compareRooms(a, b) {
+  const left = Number.parseInt(a.room_number || a.room_id || '0', 10);
+  const right = Number.parseInt(b.room_number || b.room_id || '0', 10);
+  if (Number.isFinite(left) && Number.isFinite(right) && left !== right) {
+    return left - right;
+  }
+  return String(a.room_number || a.room_id).localeCompare(String(b.room_number || b.room_id));
+}
+
+showApp();
+Promise.all([loadRooms(), loadPricingTiers(), checkHealth()]).catch(e => log(e.message, 'error'));
+document.addEventListener('motel:dashboard-update', event => {
+  const app = event.detail?.app;
+  const model = event.detail?.model;
+  if (app === 'rooms' && ['pricingtier', 'dynamicpricingrule'].includes(model)) {
+    loadPricingTiers().catch(() => {});
+  }
+  loadRooms().catch(() => {});
+});
+</script>
+{% endblock %}

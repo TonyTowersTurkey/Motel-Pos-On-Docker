@@ -1,0 +1,698 @@
+{% extends "base/base.html" %}
+
+{% block title %}{{ page_title|default:"Maintenance" }} — Motel Occupancy{% endblock %}
+{% block mobile_title %}{{ page_title|default:"Maintenance" }}{% endblock %}
+
+{% block extra_css %}
+<style>
+  :root {
+    --maintenance-bg: #09111f;
+    --maintenance-panel: rgba(15, 23, 42, 0.92);
+    --maintenance-border: rgba(148, 163, 184, 0.22);
+    --maintenance-text: #e5eefc;
+    --maintenance-muted: #94a3b8;
+    --maintenance-accent: #fbbf24;
+    --maintenance-accent-2: #38bdf8;
+    --maintenance-good: #34d399;
+    --maintenance-warn: #fb923c;
+    --maintenance-bad: #f87171;
+  }
+  body {
+    background:
+      radial-gradient(circle at top right, rgba(251, 191, 36, 0.16), transparent 26%),
+      radial-gradient(circle at bottom left, rgba(56, 189, 248, 0.16), transparent 30%),
+      linear-gradient(180deg, #0b1324 0%, #09111f 100%);
+    color: var(--maintenance-text);
+  }
+  a { color: var(--maintenance-accent-2); }
+  .maintenance-shell { max-width: 1520px; margin: 0 auto; padding: 24px; }
+  .maintenance-hero {
+    background: linear-gradient(135deg, rgba(251, 191, 36, 0.14), rgba(56, 189, 248, 0.12) 60%, rgba(15, 23, 42, 0.96));
+    border: 1px solid var(--maintenance-border);
+    border-radius: 24px;
+    padding: 24px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.28);
+    margin-bottom: 20px;
+  }
+  .maintenance-hero-top { display:flex; justify-content:space-between; gap:16px; flex-wrap:wrap; align-items:flex-start; }
+  .maintenance-kicker { text-transform: uppercase; letter-spacing: 0.22em; color: var(--maintenance-accent); font-size: 0.74rem; font-weight: 700; }
+  .maintenance-hero h1 { margin-top: 6px; font-size: clamp(2rem, 3.4vw, 3.4rem); line-height: 1.02; }
+  .maintenance-hero p { color: var(--maintenance-muted); margin-top: 10px; max-width: 70ch; }
+  .maintenance-pill-row { display:flex; gap:8px; flex-wrap:wrap; margin-top: 16px; }
+  .maintenance-pill {
+    border: 1px solid var(--maintenance-border);
+    border-radius: 999px;
+    padding: 7px 12px;
+    background: rgba(15, 23, 42, 0.75);
+    color: var(--maintenance-muted);
+    font-size: 0.82rem;
+  }
+  .maintenance-nav { display:flex; gap:10px; flex-wrap:wrap; margin-top: 18px; }
+  .maintenance-nav a {
+    display:inline-flex; align-items:center; justify-content:center; min-height: 40px;
+    padding: 0 14px; border-radius: 999px; border: 1px solid var(--maintenance-border);
+    color: var(--maintenance-text); background: rgba(15, 23, 42, 0.78); text-decoration:none; font-weight: 600;
+  }
+  .maintenance-nav a.active { background: var(--maintenance-accent); color: #1b1200; border-color: transparent; }
+  .maintenance-grid { display:grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 20px; align-items:start; }
+  .maintenance-main { min-width: 0; }
+  .maintenance-sidebar { display:grid; gap: 16px; }
+  .maintenance-card {
+    background: var(--maintenance-panel);
+    border: 1px solid var(--maintenance-border);
+    border-radius: 20px;
+    padding: 18px;
+    box-shadow: 0 14px 42px rgba(0,0,0,0.22);
+  }
+  .maintenance-card h2, .maintenance-card h3 { margin-bottom: 14px; }
+  .maintenance-label { color: var(--maintenance-muted); text-transform: uppercase; letter-spacing: 0.16em; font-size: 0.72rem; margin-bottom: 8px; }
+  .maintenance-stats { display:grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; margin-bottom: 18px; }
+  .maintenance-stat {
+    background: rgba(15, 23, 42, 0.82);
+    border: 1px solid var(--maintenance-border);
+    border-radius: 18px;
+    padding: 16px;
+  }
+  .maintenance-stat .value { font-size: 2rem; font-weight: 800; line-height: 1; margin-bottom: 6px; }
+  .maintenance-stat .label { color: var(--maintenance-muted); text-transform: uppercase; letter-spacing: 0.12em; font-size: 0.72rem; }
+  .tone-amber { color: #fbbf24; }
+  .tone-red { color: #f87171; }
+  .tone-orange { color: #fb923c; }
+  .tone-blue { color: #38bdf8; }
+  .tone-teal { color: #2dd4bf; }
+  .tone-green { color: #34d399; }
+  .button-row { display:flex; gap:8px; flex-wrap:wrap; }
+  .maintenance-btn {
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    border: 0;
+    border-radius: 12px;
+    padding: 10px 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform 0.15s ease, opacity 0.15s ease, box-shadow 0.15s ease;
+    text-decoration:none;
+  }
+  .maintenance-btn:hover { transform: translateY(-1px); }
+  .maintenance-btn.primary { background: linear-gradient(135deg, #fbbf24, #f59e0b); color: #1b1200; }
+  .maintenance-btn.secondary { background: rgba(56, 189, 248, 0.16); color: var(--maintenance-text); border: 1px solid rgba(56, 189, 248, 0.35); }
+  .maintenance-btn.ghost { background: rgba(148, 163, 184, 0.1); color: var(--maintenance-text); border: 1px solid var(--maintenance-border); }
+  .maintenance-btn.good { background: rgba(52, 211, 153, 0.16); color: #d1fae5; border: 1px solid rgba(52, 211, 153, 0.35); }
+  .maintenance-btn.warn { background: rgba(251, 146, 60, 0.16); color: #ffedd5; border: 1px solid rgba(251, 146, 60, 0.35); }
+  .maintenance-btn.bad { background: rgba(248, 113, 113, 0.16); color: #fee2e2; border: 1px solid rgba(248, 113, 113, 0.35); }
+  .maintenance-table { width:100%; border-collapse: collapse; }
+  .maintenance-table th, .maintenance-table td { padding: 12px 10px; border-bottom: 1px solid rgba(148, 163, 184, 0.16); text-align:left; vertical-align: top; }
+  .maintenance-table th { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--maintenance-muted); }
+  .maintenance-chip-row { display:flex; gap:8px; flex-wrap:wrap; }
+  .maintenance-chip {
+    border: 1px solid var(--maintenance-border);
+    border-radius: 999px;
+    padding: 7px 11px;
+    color: var(--maintenance-text);
+    background: rgba(15, 23, 42, 0.7);
+    font-size: 0.8rem;
+  }
+  .maintenance-form-grid { display:grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .maintenance-field { display:grid; gap: 6px; }
+  .maintenance-field.full { grid-column: 1 / -1; }
+  .maintenance-field label { font-size: 0.76rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--maintenance-muted); }
+  .maintenance-field input, .maintenance-field select, .maintenance-field textarea {
+    width: 100%; background: rgba(15, 23, 42, 0.9); border: 1px solid var(--maintenance-border); color: var(--maintenance-text);
+    border-radius: 12px; padding: 11px 12px;
+  }
+  .maintenance-field textarea { min-height: 110px; resize: vertical; }
+  .maintenance-callout {
+    border: 1px solid rgba(56, 189, 248, 0.3);
+    background: rgba(56, 189, 248, 0.08);
+    border-radius: 16px;
+    padding: 14px;
+    color: #dbeafe;
+  }
+  .maintenance-calendar { display:grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+  .maintenance-day {
+    border: 1px solid var(--maintenance-border);
+    border-radius: 18px;
+    padding: 16px;
+    background: rgba(15, 23, 42, 0.82);
+    min-height: 150px;
+  }
+  .maintenance-day.conflict { outline: 2px solid rgba(248, 113, 113, 0.45); }
+  .maintenance-day .day { font-size: 1.1rem; font-weight: 800; margin-bottom: 6px; }
+  .maintenance-day .meta { color: var(--maintenance-muted); font-size: 0.9rem; margin-bottom: 12px; }
+  .maintenance-kv { display:grid; gap: 10px; }
+  .maintenance-kv .row { display:flex; justify-content:space-between; gap: 10px; color: var(--maintenance-muted); font-size: 0.9rem; }
+  .maintenance-kv .row strong { color: var(--maintenance-text); }
+
+  .maintenance-dialog::backdrop { background: rgba(2, 6, 23, 0.75); backdrop-filter: blur(4px); }
+  .maintenance-dialog {
+    border: 1px solid var(--maintenance-border);
+    border-radius: 24px;
+    padding: 0;
+    max-width: min(1180px, calc(100vw - 20px));
+    width: 100%;
+    background: linear-gradient(180deg, rgba(15, 23, 42, 0.99), rgba(15, 23, 42, 0.95));
+    color: var(--maintenance-text);
+    box-shadow: 0 32px 84px rgba(0,0,0,0.55);
+  }
+  .maintenance-dialog-card { padding: 20px; }
+  .maintenance-dialog-header, .maintenance-dialog-summary {
+    display:flex; justify-content:space-between; gap:16px; flex-wrap:wrap; align-items:flex-start;
+  }
+  .maintenance-dialog-summary { padding: 14px 0 18px; border-bottom: 1px solid rgba(148,163,184,0.16); margin-bottom: 18px; }
+  .maintenance-summary-room { color: var(--maintenance-accent); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.2em; font-weight: 700; }
+  .maintenance-summary-title { font-size: 1.4rem; font-weight: 800; margin-top: 4px; }
+  .maintenance-summary-meta { color: var(--maintenance-muted); margin-top: 4px; }
+  .maintenance-dialog-grid { display:grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+  .maintenance-dialog-panel {
+    border: 1px solid var(--maintenance-border);
+    border-radius: 18px;
+    padding: 16px;
+    background: rgba(2, 6, 23, 0.22);
+  }
+  .maintenance-dialog-panel.full { grid-column: 1 / -1; }
+  .maintenance-dialog-panel h3 { margin-bottom: 12px; }
+  .maintenance-dialog-kv { display:grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 14px; }
+  .maintenance-dialog-kv div { display:flex; flex-direction:column; gap:4px; }
+  .maintenance-dialog-kv span { color: var(--maintenance-muted); font-size: 0.72rem; letter-spacing: 0.12em; text-transform: uppercase; }
+  .maintenance-dialog-kv strong { font-size: 0.96rem; }
+  .maintenance-dialog-field { display:grid; gap: 6px; margin-bottom: 12px; }
+  .maintenance-dialog-field:last-child { margin-bottom: 0; }
+  .maintenance-dialog-field label { color: var(--maintenance-muted); font-size: 0.76rem; text-transform: uppercase; letter-spacing: 0.12em; }
+  .maintenance-dialog-field textarea {
+    width: 100%; min-height: 74px; resize: vertical; border-radius: 12px; border: 1px solid var(--maintenance-border);
+    background: rgba(15, 23, 42, 0.9); color: var(--maintenance-text); padding: 10px 12px;
+  }
+  .maintenance-checklist { margin: 0; padding-left: 18px; color: var(--maintenance-text); display:grid; gap:8px; }
+  .maintenance-dialog-backdrop { position: fixed; inset: 0; background: rgba(2, 6, 23, 0.45); z-index: 1040; }
+  @media (max-width: 1120px) {
+    .maintenance-grid { grid-template-columns: 1fr; }
+    .maintenance-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .maintenance-calendar { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+  @media (max-width: 900px) {
+    .maintenance-dialog-grid, .maintenance-dialog-kv { grid-template-columns: 1fr; }
+    .maintenance-dialog { max-width: calc(100vw - 12px); }
+  }
+  @media (max-width: 720px) {
+    .maintenance-shell { padding: 16px; }
+    .maintenance-hero { padding: 18px; border-radius: 20px; }
+    .maintenance-stats { grid-template-columns: 1fr; }
+    .maintenance-calendar, .maintenance-form-grid { grid-template-columns: 1fr; }
+    .maintenance-field.full { grid-column: auto; }
+  }
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="maintenance-shell">
+  <section class="maintenance-hero">
+    <div class="maintenance-hero-top">
+      <div>
+        <div class="maintenance-kicker">Motel POS Maintenance MVP</div>
+        <h1>{{ page_title|default:"Maintenance" }}</h1>
+        <p>
+          A static front-end shell for the maintenance workstream: dashboards, work queues,
+          ad hoc work orders, planned maintenance templates, calendar preview, and room assignment.
+        </p>
+        <div class="maintenance-pill-row">
+          <span class="maintenance-pill">Design: {{ today|date:"M j, Y" }}</span>
+          <span class="maintenance-pill">Buttons only</span>
+          <span class="maintenance-pill">No backend actions yet</span>
+        </div>
+      </div>
+      <div class="maintenance-chip-row">
+        <a class="maintenance-btn ghost" href="{% url 'rooms_dashboard' %}">Back to motel dashboard</a>
+        <a class="maintenance-btn secondary" href="{% url 'rooms_manager' %}">Room manager</a>
+        <a class="maintenance-btn primary" href="{% url 'maintenance:maintenance-dashboard' %}">Open maintenance</a>
+      </div>
+    </div>
+    <nav class="maintenance-nav" aria-label="Maintenance navigation">
+      {% for item in nav_items %}
+        <a href="{% url item.url_name %}" class="{% if active_nav == item.active_name %}active{% endif %}">{{ item.label }}</a>
+      {% endfor %}
+    </nav>
+  </section>
+
+  <div class="maintenance-grid">
+    <main class="maintenance-main">
+      {% block maintenance_content %}{% endblock %}
+    </main>
+    <aside class="maintenance-sidebar">
+      <div class="maintenance-card">
+        <div class="maintenance-label">Quick Actions</div>
+        <div class="button-row">
+          <button class="maintenance-btn primary" type="button" onclick="openNewWorkOrderDialog()">Add Work Order</button>
+          <button class="maintenance-btn secondary" type="button" onclick="openWorkOrderDialog('wo-411')">Add PM Template</button>
+          <button class="maintenance-btn ghost" type="button" onclick="openWorkOrderDialog('wo-318')">Preview Calendar</button>
+          <button class="maintenance-btn good" type="button" onclick="openWorkOrderDialog('wo-105')">Start Work</button>
+          <button class="maintenance-btn warn" type="button" onclick="openWorkOrderDialog('wo-318')">Waiting for Parts</button>
+          <button class="maintenance-btn bad" type="button" onclick="openWorkOrderDialog('wo-411')">Complete Work</button>
+        </div>
+      </div>
+      <div class="maintenance-card">
+        <div class="maintenance-label">MVP Status</div>
+        <div class="maintenance-kv">
+          <div class="row"><span>Outstanding</span><strong>Open queue</strong></div>
+          <div class="row"><span>Planned</span><strong>Recurring PMs</strong></div>
+          <div class="row"><span>Calendar</span><strong>Spread by day</strong></div>
+          <div class="row"><span>Rooms</span><strong>Assignable targets</strong></div>
+        </div>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<div class="maintenance-dialog-backdrop" id="maintenanceDialogBackdrop" hidden></div>
+<dialog class="maintenance-dialog" id="workOrderDialog" aria-labelledby="workOrderDialogTitle">
+  <form class="maintenance-dialog-card" method="dialog">
+    <div class="maintenance-dialog-header">
+      <div>
+        <div class="maintenance-label">Work Order</div>
+        <h2 id="workOrderDialogTitle">Work order details</h2>
+      </div>
+      <button class="maintenance-btn ghost" type="button" onclick="closeWorkOrderDialog()">Close</button>
+    </div>
+
+    <div class="maintenance-dialog-summary">
+      <div>
+        <div class="maintenance-summary-room" id="woRoom">Room --</div>
+        <div class="maintenance-summary-title" id="woTitle">Title</div>
+        <div class="maintenance-summary-meta" id="woMeta">Category, Priority, Status</div>
+      </div>
+      <div class="button-row">
+        <button class="maintenance-btn good" type="button">Start work</button>
+        <button class="maintenance-btn warn" type="button">Waiting for parts</button>
+        <button class="maintenance-btn primary" type="button">Complete work</button>
+        <button class="maintenance-btn ghost" type="button">Add note</button>
+        <button class="maintenance-btn ghost" type="button">Cancel work</button>
+      </div>
+    </div>
+
+    <div class="maintenance-dialog-grid">
+      <section class="maintenance-dialog-panel">
+        <h3>Overview</h3>
+        <div class="maintenance-dialog-kv">
+          <div><span>Source</span><strong id="woSource">-</strong></div>
+          <div><span>Assigned to</span><strong id="woAssigned">-</strong></div>
+          <div><span>Created by</span><strong id="woCreatedBy">-</strong></div>
+          <div><span>Created at</span><strong id="woCreatedAt">-</strong></div>
+          <div><span>Due date</span><strong id="woDueDate">-</strong></div>
+          <div><span>Completed</span><strong id="woCompletedAt">-</strong></div>
+          <div><span>Estimated time</span><strong id="woEstimate">-</strong></div>
+          <div><span>Time spent</span><strong id="woSpent">-</strong></div>
+        </div>
+      </section>
+
+      <section class="maintenance-dialog-panel">
+        <h3>Job Notes</h3>
+        <div class="maintenance-dialog-field">
+          <label>Description</label>
+          <textarea id="woDescription" readonly></textarea>
+        </div>
+        <div class="maintenance-dialog-field">
+          <label>Instructions</label>
+          <textarea id="woInstructions" readonly></textarea>
+        </div>
+        <div class="maintenance-dialog-field">
+          <label>Issues found</label>
+          <textarea id="woIssuesFound" readonly></textarea>
+        </div>
+      </section>
+
+      <section class="maintenance-dialog-panel">
+        <h3>Completion</h3>
+        <div class="maintenance-dialog-field">
+          <label>Parts used</label>
+          <textarea id="woPartsUsed" readonly></textarea>
+        </div>
+        <div class="maintenance-dialog-field">
+          <label>Completion notes</label>
+          <textarea id="woCompletionNotes" readonly></textarea>
+        </div>
+      </section>
+
+      <section class="maintenance-dialog-panel">
+        <h3>Checklist</h3>
+        <ul class="maintenance-checklist" id="woChecklist"></ul>
+      </section>
+
+      <section class="maintenance-dialog-panel full">
+        <h3>Location & Safety</h3>
+        <div class="maintenance-dialog-field">
+          <label>Location notes</label>
+          <textarea id="woLocationNotes" readonly></textarea>
+        </div>
+        <div class="maintenance-dialog-field">
+          <label>Safety notes</label>
+          <textarea id="woSafetyNotes" readonly></textarea>
+        </div>
+      </section>
+
+      <section class="maintenance-dialog-panel full">
+        <h3>Attachments</h3>
+        <div class="maintenance-chip-row" id="woAttachments"></div>
+      </section>
+    </div>
+  </form>
+</dialog>
+
+<div class="maintenance-dialog-backdrop" id="newWorkOrderDialogBackdrop" hidden></div>
+<dialog class="maintenance-dialog" id="newWorkOrderDialog" aria-labelledby="newWorkOrderDialogTitle">
+  <form class="maintenance-dialog-card" method="dialog">
+    <div class="maintenance-dialog-header">
+      <div>
+        <div class="maintenance-label">Quick Action</div>
+        <h2 id="newWorkOrderDialogTitle">Create New Work Order</h2>
+      </div>
+      <button class="maintenance-btn ghost" type="button" onclick="closeNewWorkOrderDialog()">Close</button>
+    </div>
+
+    <div class="maintenance-dialog-summary">
+      <div>
+        <div class="maintenance-summary-room" id="newWoRoomLabel">Room --</div>
+        <div class="maintenance-summary-title" id="newWoSummaryTitle">New work order intake</div>
+        <div class="maintenance-summary-meta" id="newWoSummaryMeta">Fill out the fields below so the tech has everything needed on the first trip.</div>
+      </div>
+      <div class="button-row">
+        <button class="maintenance-btn good" type="button" onclick="submitNewWorkOrder()">Create Work Order</button>
+        <button class="maintenance-btn secondary" type="button" onclick="submitNewWorkOrder(true)">Save Draft</button>
+        <button class="maintenance-btn ghost" type="button" onclick="closeNewWorkOrderDialog()">Cancel</button>
+      </div>
+    </div>
+
+    <div class="maintenance-dialog-grid">
+      <section class="maintenance-dialog-panel">
+        <h3>Work Order Intake</h3>
+        <div class="maintenance-dialog-field">
+          <label for="newWoRoom">Room</label>
+          <select id="newWoRoom" onchange="refreshNewWorkOrderSummary()">
+            {% for room in room_choices %}<option value="{{ room }}">{{ room }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="maintenance-dialog-field">
+          <label for="newWoCategory">Category</label>
+          <select id="newWoCategory" onchange="refreshNewWorkOrderSummary()">
+            {% for choice in category_choices %}<option value="{{ choice }}">{{ choice }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="maintenance-dialog-field">
+          <label for="newWoPriority">Priority</label>
+          <select id="newWoPriority" onchange="refreshNewWorkOrderSummary()">
+            {% for choice in priority_choices %}<option value="{{ choice }}">{{ choice }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="maintenance-dialog-field">
+          <label for="newWoAssigned">Assigned To</label>
+          <select id="newWoAssigned" onchange="refreshNewWorkOrderSummary()">
+            {% for assignee in assignees %}<option value="{{ assignee }}">{{ assignee }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="maintenance-dialog-field">
+          <label for="newWoDueDate">Due Date</label>
+          <input id="newWoDueDate" type="date" onchange="refreshNewWorkOrderSummary()">
+        </div>
+        <div class="maintenance-dialog-field">
+          <label for="newWoEstimate">Estimated Minutes</label>
+          <input id="newWoEstimate" type="number" min="5" step="5" value="30" onchange="refreshNewWorkOrderSummary()">
+        </div>
+        <div class="maintenance-dialog-field full">
+          <label for="newWoTitle">Title</label>
+          <input id="newWoTitle" type="text" placeholder="Broken toilet, stuck lock, leaking AC..." oninput="refreshNewWorkOrderSummary()">
+        </div>
+      </section>
+
+      <section class="maintenance-dialog-panel">
+        <h3>Job Notes</h3>
+        <div class="maintenance-dialog-field">
+          <label for="newWoDescription">Description</label>
+          <textarea id="newWoDescription" placeholder="Describe the issue and what you already observed." oninput="refreshNewWorkOrderSummary()"></textarea>
+        </div>
+        <div class="maintenance-dialog-field">
+          <label for="newWoInstructions">Instructions</label>
+          <textarea id="newWoInstructions" placeholder="Tools, access, or parts the tech should bring." oninput="refreshNewWorkOrderSummary()"></textarea>
+        </div>
+        <div class="maintenance-dialog-field">
+          <label for="newWoLocationNotes">Location Notes</label>
+          <textarea id="newWoLocationNotes" placeholder="Building, floor, access codes, or room notes." oninput="refreshNewWorkOrderSummary()"></textarea>
+        </div>
+        <div class="maintenance-dialog-field">
+          <label for="newWoSafetyNotes">Safety Notes</label>
+          <textarea id="newWoSafetyNotes" placeholder="Lockout steps, wet-floor caution, PPE, and hazards." oninput="refreshNewWorkOrderSummary()"></textarea>
+        </div>
+        <div class="maintenance-dialog-field">
+          <label for="newWoChecklist">Checklist</label>
+          <textarea id="newWoChecklist" placeholder="One item per line." oninput="refreshNewWorkOrderSummary()"></textarea>
+        </div>
+        <div class="maintenance-dialog-field">
+          <label for="newWoAttachments">Attachments</label>
+          <textarea id="newWoAttachments" placeholder="Photos, diagrams, or ticket references." oninput="refreshNewWorkOrderSummary()"></textarea>
+        </div>
+      </section>
+    </div>
+  </form>
+</dialog>
+{{ work_orders|default:"[]"|json_script:"maintenance-work-orders-data" }}
+<script>
+  window.MAINTENANCE_WORK_ORDERS = JSON.parse(document.getElementById('maintenance-work-orders-data').textContent);
+
+  function formatMaintenanceValue(value) {
+    if (value === null || value === undefined || value === '') return 'Not set';
+    return String(value);
+  }
+
+  function renderChecklist(items) {
+    const list = document.getElementById('woChecklist');
+    if (!list) return;
+    list.innerHTML = (items || []).map(item => `<li>${item}</li>`).join('') || '<li>No checklist items</li>';
+  }
+
+  function renderAttachments(items) {
+    const row = document.getElementById('woAttachments');
+    if (!row) return;
+    row.innerHTML = (items || []).map(item => `<span class="maintenance-chip">${item}</span>`).join('') || '<span class="maintenance-chip">No attachments</span>';
+  }
+
+  function normalizeWorkOrderId(value) {
+    return String(value || '').replace(/^wo-/, '');
+  }
+
+  function findWorkOrderRecord(workOrderId) {
+    const normalized = normalizeWorkOrderId(workOrderId);
+    return (window.MAINTENANCE_WORK_ORDERS || []).find(item => normalizeWorkOrderId(item.id) === normalized);
+  }
+
+  function openWorkOrderDialog(workOrderId) {
+    const record = findWorkOrderRecord(workOrderId);
+    const dialog = document.getElementById('workOrderDialog');
+    const backdrop = document.getElementById('maintenanceDialogBackdrop');
+    if (!record || !dialog || !backdrop) return;
+
+    document.getElementById('woRoom').textContent = `Room ${formatMaintenanceValue(record.room)}`;
+    document.getElementById('woTitle').textContent = formatMaintenanceValue(record.title);
+    document.getElementById('woMeta').textContent = [record.category, record.priority, record.status].filter(Boolean).join(' · ');
+    document.getElementById('woSource').textContent = formatMaintenanceValue(record.source);
+    document.getElementById('woAssigned').textContent = formatMaintenanceValue(record.assigned_to);
+    document.getElementById('woCreatedBy').textContent = formatMaintenanceValue(record.created_by);
+    document.getElementById('woCreatedAt').textContent = formatMaintenanceValue(record.created_at);
+    document.getElementById('woDueDate').textContent = formatMaintenanceValue(record.due_date);
+    document.getElementById('woCompletedAt').textContent = formatMaintenanceValue(record.completed_at);
+    document.getElementById('woEstimate').textContent = `${formatMaintenanceValue(record.estimated_minutes)} min`;
+    document.getElementById('woSpent').textContent = `${formatMaintenanceValue(record.time_spent_minutes)} min`;
+    document.getElementById('woDescription').value = formatMaintenanceValue(record.description);
+    document.getElementById('woInstructions').value = formatMaintenanceValue(record.instructions);
+    document.getElementById('woIssuesFound').value = formatMaintenanceValue(record.issues_found);
+    document.getElementById('woPartsUsed').value = formatMaintenanceValue(record.parts_used);
+    document.getElementById('woCompletionNotes').value = formatMaintenanceValue(record.completion_notes);
+    document.getElementById('woLocationNotes').value = formatMaintenanceValue(record.location_notes);
+    document.getElementById('woSafetyNotes').value = formatMaintenanceValue(record.safety_notes);
+    renderChecklist(record.checklist);
+    renderAttachments(record.attachments);
+
+    backdrop.hidden = false;
+    if (typeof dialog.showModal === 'function') {
+      dialog.showModal();
+    } else {
+      dialog.setAttribute('open', 'open');
+    }
+  }
+
+  function closeWorkOrderDialog() {
+    const dialog = document.getElementById('workOrderDialog');
+    const backdrop = document.getElementById('maintenanceDialogBackdrop');
+    if (dialog && typeof dialog.close === 'function') dialog.close();
+    if (dialog) dialog.removeAttribute('open');
+    if (backdrop) backdrop.hidden = true;
+  }
+
+  function setNewWorkOrderDefaults() {
+    const defaults = {
+      newWoRoom: '105',
+      newWoCategory: 'Plumbing',
+      newWoPriority: 'Normal',
+      newWoAssigned: 'Unassigned',
+      newWoDueDate: '',
+      newWoEstimate: '30',
+      newWoTitle: '',
+      newWoDescription: '',
+      newWoInstructions: '',
+      newWoLocationNotes: '',
+      newWoSafetyNotes: '',
+      newWoChecklist: "Confirm access\nInspect issue\nComplete repair\nTest and document",
+      newWoAttachments: '',
+    };
+    Object.entries(defaults).forEach(([id, value]) => {
+      const el = document.getElementById(id);
+      if (el) el.value = value;
+    });
+    refreshNewWorkOrderSummary();
+  }
+
+  function refreshNewWorkOrderSummary() {
+    const room = document.getElementById('newWoRoom');
+    const title = document.getElementById('newWoTitle');
+    const category = document.getElementById('newWoCategory');
+    const priority = document.getElementById('newWoPriority');
+    const assigned = document.getElementById('newWoAssigned');
+    const dueDate = document.getElementById('newWoDueDate');
+    const estimate = document.getElementById('newWoEstimate');
+    const roomLabel = document.getElementById('newWoRoomLabel');
+    const summaryTitle = document.getElementById('newWoSummaryTitle');
+    const summaryMeta = document.getElementById('newWoSummaryMeta');
+    if (roomLabel) roomLabel.textContent = room?.value ? `Room ${room.value}` : 'Room --';
+    if (summaryTitle) summaryTitle.textContent = title?.value?.trim() || 'New work order intake';
+    if (summaryMeta) {
+      const parts = [category?.value, priority?.value, assigned?.value, dueDate?.value ? `Due ${dueDate.value}` : null, estimate?.value ? `${estimate.value} min` : null].filter(Boolean);
+      summaryMeta.textContent = parts.length ? parts.join(' · ') : 'Fill out the fields below so the tech has everything needed on the first trip.';
+    }
+  }
+
+  function getCookie(name) {
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) return parts.pop().split(';').shift();
+    return '';
+  }
+
+  function splitMaintenanceLines(value) {
+    return String(value || '')
+      .split(/\r?\n/)
+      .map(line => line.trim())
+      .filter(Boolean);
+  }
+
+  function buildNewWorkOrderPayload() {
+    const room = document.getElementById('newWoRoom');
+    const title = document.getElementById('newWoTitle');
+    const category = document.getElementById('newWoCategory');
+    const priority = document.getElementById('newWoPriority');
+    const assigned = document.getElementById('newWoAssigned');
+    const dueDate = document.getElementById('newWoDueDate');
+    const estimate = document.getElementById('newWoEstimate');
+    const description = document.getElementById('newWoDescription');
+    const instructions = document.getElementById('newWoInstructions');
+    const locationNotes = document.getElementById('newWoLocationNotes');
+    const safetyNotes = document.getElementById('newWoSafetyNotes');
+    const checklist = document.getElementById('newWoChecklist');
+    const attachments = document.getElementById('newWoAttachments');
+    const roomValue = room?.value?.trim() || '';
+    const categoryValue = category?.value?.trim() || '';
+    const titleValue = title?.value?.trim() || `${categoryValue || 'General'} work order for room ${roomValue || '--'}`;
+    return {
+      room_number: roomValue,
+      title: titleValue,
+      description: description?.value?.trim() || '',
+      category: categoryValue,
+      priority: priority?.value?.trim().toLowerCase() || 'normal',
+      status: 'open',
+      source: 'adhoc',
+      assigned_to_name: assigned?.value?.trim() || '',
+      due_date: dueDate?.value || null,
+      estimated_minutes: estimate?.value ? Number.parseInt(estimate.value, 10) : null,
+      instructions: instructions?.value?.trim() || '',
+      location_notes: locationNotes?.value?.trim() || '',
+      safety_notes: safetyNotes?.value?.trim() || '',
+      checklist: splitMaintenanceLines(checklist?.value),
+      attachments: splitMaintenanceLines(attachments?.value),
+    };
+  }
+
+  async function submitNewWorkOrder(saveDraft = false) {
+    const payload = buildNewWorkOrderPayload();
+    if (!payload.title) {
+      payload.title = 'Ad hoc work order';
+    }
+    if (saveDraft) {
+      payload.status = 'open';
+    }
+    const response = await fetch('/api/work-orders/', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': getCookie('csrftoken'),
+      },
+      body: JSON.stringify(payload),
+    });
+    if (!response.ok) {
+      let message = 'Unable to save work order.';
+      try {
+        const data = await response.json();
+        message = data.detail || data.non_field_errors?.join?.(', ') || JSON.stringify(data);
+      } catch (error) {
+        message = `${message} (${response.status})`;
+      }
+      alert(message);
+      return;
+    }
+    const created = await response.json();
+    window.MAINTENANCE_WORK_ORDERS = [created, ...(window.MAINTENANCE_WORK_ORDERS || [])];
+    closeNewWorkOrderDialog();
+    openWorkOrderDialog(created.id);
+  }
+
+  function openNewWorkOrderDialog() {
+    const dialog = document.getElementById('newWorkOrderDialog');
+    const backdrop = document.getElementById('newWorkOrderDialogBackdrop');
+    if (!dialog || !backdrop) return;
+    setNewWorkOrderDefaults();
+    backdrop.hidden = false;
+    if (typeof dialog.showModal === 'function') {
+      dialog.showModal();
+    } else {
+      dialog.setAttribute('open', 'open');
+    }
+  }
+
+  function closeNewWorkOrderDialog() {
+    const dialog = document.getElementById('newWorkOrderDialog');
+    const backdrop = document.getElementById('newWorkOrderDialogBackdrop');
+    if (dialog && typeof dialog.close === 'function') dialog.close();
+    if (dialog) dialog.removeAttribute('open');
+    if (backdrop) backdrop.hidden = true;
+  }
+
+  document.addEventListener('keydown', event => {
+    if (event.key === 'Escape') {
+      closeWorkOrderDialog();
+      closeNewWorkOrderDialog();
+    }
+  });
+
+  const backdrop = document.getElementById('maintenanceDialogBackdrop');
+  if (backdrop) {
+    backdrop.addEventListener('click', closeWorkOrderDialog);
+  }
+
+  const newBackdrop = document.getElementById('newWorkOrderDialogBackdrop');
+  if (newBackdrop) {
+    newBackdrop.addEventListener('click', closeNewWorkOrderDialog);
+  }
+
+  document.addEventListener('motel:dashboard-update', event => {
+    if (!['maintenance', 'workorders', 'rooms'].includes(event.detail?.app)) return;
+    const openDialog = document.querySelector('dialog[open]');
+    if (!openDialog) window.location.reload();
+  });
+</script>
+{% endblock %}

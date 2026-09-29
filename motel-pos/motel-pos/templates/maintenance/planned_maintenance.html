@@ -1,0 +1,111 @@
+{% extends "maintenance/base.html" %}
+
+{% block maintenance_content %}
+  <section class="maintenance-card" style="margin-bottom:18px">
+    <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap;margin-bottom:10px">
+      <div>
+        <div class="maintenance-label">Planned Maintenance Module</div>
+        <h2>Recurring maintenance templates</h2>
+      </div>
+      <div class="button-row">
+        <button class="maintenance-btn primary" type="button">Add Template</button>
+        <button class="maintenance-btn secondary" type="button">Duplicate Template</button>
+        <a class="maintenance-btn ghost" href="{% url 'maintenance:maintenance-calendar-preview' %}">Preview Calendar</a>
+      </div>
+    </div>
+    <table class="maintenance-table">
+      <thead>
+        <tr><th>PM Name</th><th>Category</th><th>Frequency</th><th>Rooms</th><th>Priority</th><th>Status</th><th>Actions</th></tr>
+      </thead>
+      <tbody>
+        {% for template in templates %}
+        <tr>
+          <td>{{ template.name }}</td>
+          <td>{{ template.category }}</td>
+          <td>{{ template.frequency }}</td>
+          <td>{{ template.rooms }}</td>
+          <td>{{ template.priority }}</td>
+          <td>{% if template.active %}Active{% else %}Inactive{% endif %}</td>
+          <td>
+            <div class="button-row">
+              <button class="maintenance-btn good" type="button">Activate</button>
+              <button class="maintenance-btn warn" type="button">Pause</button>
+              <button class="maintenance-btn primary" type="button">Edit</button>
+              <button class="maintenance-btn ghost" type="button">Preview</button>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+
+  <section class="maintenance-card">
+    <div class="maintenance-label">Template Editor Shell</div>
+    <div class="maintenance-form-grid">
+      <div class="maintenance-field full">
+        <label>PM Name</label>
+        <input type="text" placeholder="Clean air filters">
+      </div>
+      <div class="maintenance-field full">
+        <label>Description</label>
+        <textarea placeholder="Recurring task description."></textarea>
+      </div>
+      <div class="maintenance-field">
+        <label>Category</label>
+        <input type="text" placeholder="HVAC">
+      </div>
+      <div class="maintenance-field">
+        <label>Default Priority</label>
+        <select>
+          <option>Low</option><option selected>Normal</option><option>High</option><option>Urgent</option>
+        </select>
+      </div>
+      <div class="maintenance-field">
+        <label>Frequency</label>
+        <select>
+          {% for option in frequency_options %}<option>{{ option }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="maintenance-field">
+        <label>Estimated Minutes / Room</label>
+        <input type="number" value="20">
+      </div>
+      <div class="maintenance-field">
+        <label>Start Date</label>
+        <input type="date">
+      </div>
+      <div class="maintenance-field">
+        <label>End Date</label>
+        <input type="date">
+      </div>
+      <div class="maintenance-field">
+        <label>Rooms Included</label>
+        <select>
+          {% for option in room_assignment_options %}<option>{{ option }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="maintenance-field">
+        <label>Auto-create Work Orders</label>
+        <select><option>Yes</option><option>No</option></select>
+      </div>
+      <div class="maintenance-field">
+        <label>Days Before Due</label>
+        <input type="number" value="7">
+      </div>
+      <div class="maintenance-field">
+        <label>Active</label>
+        <select><option>Active</option><option>Inactive</option></select>
+      </div>
+      <div class="maintenance-field full">
+        <label>Room Target Notes</label>
+        <textarea placeholder="Use all rooms, selected rooms, room group, floor, building, or room type."></textarea>
+      </div>
+    </div>
+    <div class="button-row" style="margin-top:14px">
+      <button class="maintenance-btn primary" type="button">Save Template</button>
+      <button class="maintenance-btn secondary" type="button">Preview Schedule</button>
+      <button class="maintenance-btn ghost" type="button">Sync Due Work Orders</button>
+    </div>
+  </section>
+{% endblock %}

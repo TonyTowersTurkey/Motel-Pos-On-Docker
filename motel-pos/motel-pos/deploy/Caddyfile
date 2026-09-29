@@ -1,0 +1,35 @@
+{
+    admin off
+}
+
+{$SITE_ADDRESS} {
+    encode zstd gzip
+
+    header {
+        -Server
+        X-Content-Type-Options nosniff
+        Referrer-Policy same-origin
+    }
+
+    handle_path /static/* {
+        root * /srv/static
+        file_server
+    }
+
+    handle_path /media/* {
+        root * /srv/media
+        file_server
+    }
+
+    handle {
+        reverse_proxy motel-pos:8000 {
+            # Ensure authenticated server-sent events reach dashboards immediately.
+            flush_interval -1
+        }
+    }
+
+    log {
+        output stdout
+        format json
+    }
+}

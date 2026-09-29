@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Dashboard · {{ app_name }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/app.css') }}?v=24">
+  </head>
+  <body>
+    {% include "_page_header.html" %}
+    <main class="shell dashboard-shell">
+      <header class="topbar">
+        <div>
+          <h1>Dashboard</h1>
+          <p>Current garage door state for every room.</p>
+        </div>
+      </header>
+
+      <section class="panel room-status-panel" data-collapsible-id="dashboard-rooms">
+        <div class="panel-heading">
+          <h2>Rooms</h2>
+          <p id="dashboard-room-summary" aria-live="polite">Loading rooms...</p>
+        </div>
+        <div id="dashboard-room-rows" class="room-status-grid" aria-live="polite">
+          <p class="room-status-empty">Loading rooms...</p>
+        </div>
+      </section>
+    </main>
+    <script src="{{ url_for('static', path='/js/collapsible_sections.js') }}?v=1"></script>
+    <script src="{{ url_for('static', path='/js/room_dashboard.js') }}?v=4"></script>
+  </body>
+</html>

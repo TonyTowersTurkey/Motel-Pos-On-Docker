@@ -1,0 +1,194 @@
+name: motel-pos
+
+x-app: &app
+  image: ${MOTEL_POS_IMAGE:-motel-pos:local}
+  build:
+    context: .
+    dockerfile: Dockerfile
+  env_file:
+    - .env.production
+  environment:
+    ENVIRONMENT: production
+    DEBUG: "false"
+    DB_HOST: postgres
+    DB_PORT: "5432"
+    DB_NAME: ${POSTGRES_DB:-motel_occupancy}
+    DB_USER: ${POSTGRES_USER:-motel}
+    DB_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env.production}
+    REDIS_HOST: redis
+    REDIS_PORT: "6379"
+    REDIS_REQUIRED: "true"
+    SSE_REDIS_URL: redis://redis:6379/2
+    STATIC_ROOT: /app/staticfiles
+    MEDIA_ROOT: /app/media
+    REPORT_ROOT: /app/data/reports
+  networks:
+    - edge
+    - data
+  security_opt:
+    - no-new-privileges:true
+  read_only: true
+  tmpfs:
+    - /tmp:size=128m,mode=1777
+  logging:
+    driver: json-file
+    options:
+      max-size: 10m
+      max-file: "5"
+
+services:
+  postgres:
+    image: postgres:16-bookworm
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-motel_occupancy}
+      POSTGRES_USER: ${POSTGRES_USER:-motel}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env.production}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    shm_size: 256mb
+    cpus: ${POSTGRES_CPUS:-2}
+    mem_limit: ${POSTGRES_MEMORY:-4g}
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "5"
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    networks:
+      - data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+    cpus: ${REDIS_CPUS:-1}
+    mem_limit: ${REDIS_MEMORY:-512m}
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "5"
+
+  init:
+    <<: *app
+    command: ["init"]
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - static-data:/app/staticfiles
+      - media-data:/app/media
+      - report-data:/app/data/reports
+
+  motel-pos:
+    <<: *app
+    restart: unless-stopped
+    command: ["web"]
+    depends_on:
+      init:
+        condition: service_completed_successfully
+    expose:
+      - "8000"
+    volumes:
+      - static-data:/app/staticfiles:ro
+      - media-data:/app/media
+      - report-data:/app/data/reports
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "--show-error", "http://127.0.0.1:8000/api/health/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    stop_grace_period: 45s
+    cpus: ${APP_CPUS:-4}
+    mem_limit: ${APP_MEMORY:-4g}
+
+  proxy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:?Set SITE_ADDRESS in .env.production}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    networks:
+      - edge
+    depends_on:
+      motel-pos:
+        condition: service_healthy
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - static-data:/srv/static:ro
+      - media-data:/srv/media:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    cpus: ${PROXY_CPUS:-1}
+    mem_limit: ${PROXY_MEMORY:-512m}
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "5"
+
+  # Enable with: ./scripts/deploy.sh --detector
+  # Adapt these four variable names if the sister image uses a different contract.
+  detector:
+    image: ${DETECTOR_IMAGE:-room-detector:latest}
+    profiles: ["detector"]
+    restart: unless-stopped
+    environment:
+      CAMERA_URL: ${CAMERA_URL:-}
+      MOTEL_WEBHOOK_URL: ${DETECTOR_WEBHOOK_URL:-}
+      MOTEL_WEBHOOK_TOKEN: ${ROOM_PULSE_WEBHOOK_TOKEN:-}
+      MODEL_PATH: ${DETECTOR_MODEL_PATH:-/models/model}
+    networks:
+      - edge
+    volumes:
+      - detector-data:/var/lib/room-detector
+      - ${DETECTOR_MODEL_DIR:-./detector-models}:/models:ro
+    cpus: ${DETECTOR_CPUS:-8}
+    mem_limit: ${DETECTOR_MEMORY:-12g}
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: 25m
+        max-file: "5"
+
+networks:
+  edge:
+  data:
+    internal: true
+
+volumes:
+  postgres-data:
+  static-data:
+  media-data:
+  report-data:
+  caddy-data:
+  caddy-config:
+  detector-data:

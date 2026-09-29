@@ -1,0 +1,92 @@
+<aside class="pos-sidebar" id="posSidebar" aria-label="Main navigation">
+  <button class="pos-sidebar-close" type="button" data-pos-nav-close aria-label="Close main navigation">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg>
+  </button>
+  <a class="pos-sidebar-brand" href="{% url 'revenue_cashier' %}">
+    <span class="pos-brand-mark">M</span>
+    <span class="pos-brand-copy">
+      <span class="pos-brand-title">Motel POS</span>
+      <span class="pos-brand-subtitle">Operations</span>
+    </span>
+  </a>
+
+  <nav>
+    <section class="pos-nav-group" aria-labelledby="pos-nav-desk">
+      <div class="pos-nav-label" id="pos-nav-desk">Front Desk</div>
+      <ul class="pos-nav-list">
+        <li>
+          <a class="pos-nav-link {% if request.resolver_match.url_name == 'revenue_cashier' %}active{% endif %}" href="{% url 'revenue_cashier' %}" {% if request.resolver_match.url_name == 'revenue_cashier' %}aria-current="page"{% endif %}>
+            <span class="pos-nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v14H4zM8 9h8M8 13h3M15 13h1M8 16h8"/></svg></span>
+            <span>Cashier POS</span>
+          </a>
+        </li>
+        {% if request.resolver_match.url_name == 'revenue_cashier' %}
+        <li>
+          <div class="pos-cashier-tabs" id="dashTabs" aria-label="Cashier sections">
+            <button class="tab pos-cashier-tab active" type="button" onclick="switchTab('rooms',this)">Rooms</button>
+            <button class="tab pos-cashier-tab" type="button" onclick="switchTab('sales',this)">Sales</button>
+            <button class="tab pos-cashier-tab" type="button" onclick="switchTab('cuadre',this)">Cuadre / Revenue</button>
+            <button class="tab pos-cashier-tab role-restricted" type="button" data-min-role="manager" onclick="switchTab('pricing',this)">Pricing Tiers</button>
+            <button class="tab pos-cashier-tab role-restricted" type="button" data-min-role="manager" onclick="switchTab('ledger',this)">Ledger History</button>
+          </div>
+        </li>
+        {% endif %}
+      </ul>
+    </section>
+
+    {% if perms.rooms.change_room %}
+    <section class="pos-nav-group" aria-labelledby="pos-nav-management">
+      <div class="pos-nav-label" id="pos-nav-management">Management</div>
+      <ul class="pos-nav-list">
+        <li>
+          <a class="pos-nav-link {% if request.resolver_match.url_name == 'rooms_manager' %}active{% endif %}" href="{% url 'rooms_manager' %}" {% if request.resolver_match.url_name == 'rooms_manager' %}aria-current="page"{% endif %}>
+            <span class="pos-nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V9l8-5 8 5v10M8 19v-6h8v6M3 19h18"/></svg></span>
+            <span>Manager Dashboard</span>
+          </a>
+        </li>
+        <li>
+          <a class="pos-nav-link {% if request.resolver_match.url_name == 'rooms_config' %}active{% endif %}" href="{% url 'rooms_config' %}" {% if request.resolver_match.url_name == 'rooms_config' %}aria-current="page"{% endif %}>
+            <span class="pos-nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M7 6v12M17 6v12M4 18h16M10 10h4M10 14h4"/></svg></span>
+            <span>Room Configuration</span>
+          </a>
+        </li>
+        <li>
+          <a class="pos-nav-link {% if request.resolver_match.url_name == 'vehicles_manager' %}active{% endif %}" href="{% url 'vehicles_manager' %}" {% if request.resolver_match.url_name == 'vehicles_manager' %}aria-current="page"{% endif %}>
+            <span class="pos-nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 17-1-5 2-5h12l2 5-1 5M6 17v2M18 17v2M4 13h16M7 13l1-2h8l1 2M7 16h.01M17 16h.01"/></svg></span>
+            <span>Vehicles</span>
+          </a>
+        </li>
+        <li>
+          <a class="pos-nav-link {% if request.resolver_match.namespace == 'maintenance' %}active{% endif %}" href="{% url 'maintenance:maintenance-dashboard' %}" {% if request.resolver_match.namespace == 'maintenance' %}aria-current="page"{% endif %}>
+            <span class="pos-nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14.7 6.3 3-3a4 4 0 0 1-5 5l-7.4 7.4a2.1 2.1 0 0 0 3 3l7.4-7.4a4 4 0 0 1 5-5l-3 3"/></svg></span>
+            <span>Maintenance</span>
+          </a>
+        </li>
+        {% if user.is_staff %}
+        <li>
+          <a class="pos-nav-link" href="{% url 'admin:index' %}">
+            <span class="pos-nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 4 7v5c0 5 3.4 8 8 9 4.6-1 8-4 8-9V7zM9 12l2 2 4-4"/></svg></span>
+            <span>Administration</span>
+          </a>
+        </li>
+        {% endif %}
+      </ul>
+    </section>
+    {% endif %}
+  </nav>
+
+  <div class="pos-sidebar-footer">
+    <div class="pos-account">
+      <div class="pos-account-name">{{ user.get_full_name|default:user.username }}</div>
+      <div class="pos-account-role">{{ user.get_role_display }}</div>
+      <div class="pos-live-status" id="posLiveStatus" role="status" aria-live="polite">
+        <span class="pos-live-dot" aria-hidden="true"></span>
+        <span data-live-label>Connecting live updates…</span>
+      </div>
+      <form class="pos-logout-form" method="post" action="{% url 'logout' %}">
+        {% csrf_token %}
+        <button class="pos-logout" type="submit">Sign out</button>
+      </form>
+    </div>
+  </div>
+</aside>

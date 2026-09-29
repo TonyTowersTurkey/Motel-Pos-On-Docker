@@ -1,0 +1,749 @@
+{% extends "base/base.html" %}
+{% load static %}
+
+{% block title %}Manager — Motel Occupancy{% endblock %}
+{% block mobile_title %}Manager Dashboard{% endblock %}
+
+{% block body %}
+<style>
+.manager-shell { max-width: 1500px; margin: 0 auto; padding: 24px; display: grid; grid-template-columns: minmax(0, 1fr) 420px; gap: 20px; }
+.manager-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 18px; flex-wrap: wrap; }
+.tabs { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.tab-btn { border: 0; background: rgba(15,23,42,0.8); color: var(--muted); padding: 9px 14px; cursor: pointer; font-weight: 600; }
+.tab-btn.active { background: var(--accent); color: #fff; }
+.manager-panel { display: none; }
+.manager-panel.active { display: block; }
+.form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.field label { display:block; color: var(--muted); font-size: 0.76rem; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 5px; }
+.field input, .field textarea, .field select { width:100%; padding: 9px 10px; border-radius: 8px; border: 1px solid var(--border); background: #0f172a; color: var(--text); }
+.field textarea { min-height: 72px; resize: vertical; }
+.field.full { grid-column: 1 / -1; }
+.field.checkbox { display:flex; align-items:center; gap:8px; padding-top: 21px; }
+.field.checkbox input { width:auto; }
+.field.checkbox label { margin: 0; text-transform: none; }
+.room-table { width: 100%; border-collapse: collapse; font-size: 0.84rem; }
+.room-table th { text-align: left; padding: 8px; color: var(--muted); background: rgba(0,0,0,0.18); font-size: 0.72rem; text-transform: uppercase; }
+.room-table td { padding: 8px; border-bottom: 1px solid rgba(51,65,85,0.45); vertical-align: top; }
+.room-table button { margin: 0; }
+.selected-room { outline: 2px solid var(--accent); }
+.login-box { max-width: 420px; margin: 42px auto; }
+.muted { color: var(--muted); }
+.search-row { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; flex-wrap: wrap; }
+.search-row input { flex: 1 1 260px; padding: 9px 10px; border-radius: 8px; border: 1px solid var(--border); background: #0f172a; color: var(--text); }
+.vehicle-editor { display: none; margin-top: 14px; }
+.vehicle-editor.active { display: block; }
+.vehicle-dialog { border: none; padding: 0; background: transparent; max-width: 760px; width: calc(100% - 24px); }
+.vehicle-dialog::backdrop { background: rgba(2, 6, 23, 0.7); backdrop-filter: blur(3px); }
+.vehicle-dialog-card { background: linear-gradient(180deg, rgba(15,23,42,0.98), rgba(15,23,42,0.92)); color: var(--text); border: 1px solid var(--border); border-radius: 18px; padding: 20px; box-shadow: 0 24px 64px rgba(0,0,0,0.45); }
+.vehicle-dialog-header { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom: 10px; }
+.dialog-actions { display:flex; gap: 8px; justify-content:flex-end; margin-top: 16px; flex-wrap: wrap; }
+@media (max-width: 980px) { .manager-shell { grid-template-columns: 1fr; } .form-grid { grid-template-columns: 1fr; } .vehicle-dialog { width: calc(100% - 16px); } }
+</style>
+
+<div class="header">
+  <h1>Motel Manager<span class="badge">{% if debug %}DEV{% else %}PRO{% endif %}</span></h1>
+  <div class="status" id="healthStatus">
+    <span><span class="dot red" id="healthDot"></span> Checking...</span>
+  </div>
+</div>
+
+<div class="login-box card" id="loginPanel" hidden>
+  <h3>Manager Login</h3>
+  <div class="field">
+    <label for="loginUsername">Username</label>
+    <input id="loginUsername" value="{{ default_username|default:'manager' }}" autocomplete="username">
+  </div>
+  <div class="field" style="margin-top:10px">
+    <label for="loginPassword">Password</label>
+    <input id="loginPassword" type="password" autocomplete="current-password">
+  </div>
+  <button class="btn btn-primary" onclick="login()" style="width:100%;margin-top:14px">Login</button>
+  <p class="muted" id="loginError" style="margin-top:10px"></p>
+</div>
+
+<div class="manager-shell" id="appPanel" hidden>
+  <div class="main-panel">
+    <div class="manager-toolbar">
+      <div class="tabs">
+        <button class="tab-btn active" data-panel="overviewPanel" onclick="showPanel('overviewPanel')">Overview</button>
+        <button class="tab-btn" data-panel="vehiclesPanel" onclick="showPanel('vehiclesPanel')">Vehicles</button>
+        <button class="tab-btn" data-panel="usersPanel" onclick="showPanel('usersPanel')">Users</button>
+        <button class="tab-btn" data-panel="reportsPanel" onclick="showPanel('reportsPanel')">Reports</button>
+      </div>
+      <div>
+        <a href="{% url 'rooms_config' %}" class="btn btn-sm btn-yellow">Room Configuration</a>
+        <button class="btn btn-sm btn-primary" onclick="loadAll()">Refresh</button>
+      </div>
+    </div>
+
+    <div class="stats" id="statsRow">
+      <div class="stat-card"><div class="num" id="totalRooms">0</div><div class="label">Total Rooms</div></div>
+      <div class="stat-card"><div class="num occupied" id="occCount">0</div><div class="label">Car Present</div></div>
+      <div class="stat-card"><div class="num vacant" id="vacCount">0</div><div class="label">No Car</div></div>
+      <div class="stat-card"><div class="num maintenance" id="maintCount">0</div><div class="label">Maintenance</div></div>
+    </div>
+
+    <section class="manager-panel active" id="overviewPanel">
+      <div class="card">
+        <h3>Cashier View</h3>
+        <div class="room-grid" id="roomGrid"></div>
+      </div>
+      <div class="card">
+        <h3>Recent Car Activity</h3>
+        <table class="events-table">
+          <thead><tr><th>Time</th><th>Room</th><th>Event</th><th>Source</th></tr></thead>
+          <tbody id="eventsBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="manager-panel" id="reportsPanel">
+      <div class="card">
+        <h3>Reports</h3>
+        <button class="btn btn-primary" onclick="genReport('daily_occupancy')">Daily Occupancy</button>
+        <button class="btn btn-green" onclick="genReport('daily_sales')">Daily Sales</button>
+        <button class="btn btn-yellow" onclick="genReport('exceptions')">Exceptions</button>
+      </div>
+      <div class="card">
+        <h3>Maintenance Schedule</h3>
+        <table class="events-table">
+          <thead><tr><th>Room</th><th>Category</th><th>Status</th><th>Next Due</th><th>Cost</th></tr></thead>
+          <tbody id="maintBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="manager-panel" id="vehiclesPanel">
+      <div class="card">
+        <h3>Vehicles</h3>
+        <div class="search-row">
+          <input id="vehicleSearch" placeholder="Search plate, make, model, color, notes, or room" onkeydown="if(event.key==='Enter'){loadVehicles();return false;}">
+          <button class="btn btn-sm btn-primary" type="button" onclick="loadVehicles()">Search</button>
+          <button class="btn btn-sm btn-yellow" type="button" onclick="clearVehicleSearch()">Clear</button>
+          <button class="btn btn-sm btn-green" type="button" onclick="createVehicle()">Create New Vehicle</button>
+        </div>
+        <table class="events-table">
+          <thead><tr><th>Plate</th><th>Vehicle</th><th>Notes</th><th>Updated</th><th></th></tr></thead>
+          <tbody id="vehiclesBody"><tr><td colspan="5" class="muted">Loading vehicles...</td></tr></tbody>
+        </table>
+
+        <dialog class="vehicle-dialog" id="vehicleDialog" aria-labelledby="vehicleDialogTitle">
+          <div class="vehicle-dialog-card">
+            <div class="vehicle-dialog-header">
+              <h3 id="vehicleDialogTitle">Create New Vehicle</h3>
+              <button class="btn btn-sm" type="button" onclick="closeVehicleDialog()">Close</button>
+            </div>
+            <p class="muted" style="margin-top:-4px">Fill in the vehicle identity fields below. License plate duplicates are blocked automatically.</p>
+            <div class="form-grid">
+              <div class="field">
+                <label for="editVehiclePlate">License Plate</label>
+                <input id="editVehiclePlate" autocomplete="off" oninput="this.value=this.value.toUpperCase()">
+              </div>
+              <div class="field">
+                <label for="editVehicleColor">Color</label>
+                <input id="editVehicleColor" autocomplete="off">
+              </div>
+              <div class="field">
+                <label for="editVehicleMake">Make</label>
+                <input id="editVehicleMake" autocomplete="off">
+              </div>
+              <div class="field">
+                <label for="editVehicleModel">Model</label>
+                <input id="editVehicleModel" autocomplete="off">
+              </div>
+              <div class="field">
+                <label for="editVehicleShape">Vehicle Shape</label>
+                <select id="editVehicleShape"><option value="">Not specified</option></select>
+              </div>
+              <div class="field full">
+                <label for="editVehicleNotes">Notes</label>
+                <textarea id="editVehicleNotes"></textarea>
+              </div>
+            </div>
+            <div class="dialog-actions">
+              <button class="btn btn-green btn-sm" id="vehicleDialogAction" type="button" onclick="saveVehicle()">Create Vehicle</button>
+              <button class="btn btn-sm" type="button" onclick="closeVehicleDialog()">Cancel</button>
+            </div>
+          </div>
+        </dialog>
+      </div>
+    </section>
+
+    <section class="manager-panel" id="usersPanel">
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap;margin-bottom:12px">
+          <div>
+            <h3>Users</h3>
+            <p class="muted" style="margin-top:4px">{% if perms.users.change_user %}Admin account management lives here. Create or edit motel users without leaving the app.{% else %}Read-only review of motel accounts. Create or edit users in Django Admin.{% endif %}</p>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            {% if perms.users.change_user %}
+            <button class="btn btn-sm btn-green" type="button" onclick="openUserDialog()">Create User</button>
+            {% endif %}
+            <button class="btn btn-sm btn-primary" type="button" onclick="loadUsers()">Refresh Users</button>
+            <a href="{% url 'admin:index' %}" class="btn btn-sm btn-yellow">Open Django Admin</a>
+          </div>
+        </div>
+        <table class="events-table">
+          <thead>
+            <tr><th>Username</th><th>Role</th><th>Name</th><th>Status</th><th>Staff</th><th>Last Login</th>{% if perms.users.change_user %}<th>Actions</th>{% endif %}</tr>
+          </thead>
+          <tbody id="usersBody"><tr><td colspan="{% if perms.users.change_user %}7{% else %}6{% endif %}" class="muted">Loading users...</td></tr></tbody>
+        </table>
+        {% if perms.users.change_user %}
+        <dialog class="vehicle-dialog" id="userDialog" aria-labelledby="userDialogTitle">
+          <div class="vehicle-dialog-card">
+            <div class="vehicle-dialog-header">
+              <h3 id="userDialogTitle">Create User</h3>
+              <button class="btn btn-sm" type="button" onclick="closeUserDialog()">Close</button>
+            </div>
+            <p class="muted" style="margin-top:-4px">Leave the password blank when editing an existing user to keep the current password.</p>
+            <div class="form-grid">
+              <div class="field">
+                <label for="editUserUsername">Username</label>
+                <input id="editUserUsername" autocomplete="username">
+              </div>
+              <div class="field">
+                <label for="editUserPassword">Password</label>
+                <input id="editUserPassword" type="password" autocomplete="new-password">
+              </div>
+              <div class="field">
+                <label for="editUserFirstName">First Name</label>
+                <input id="editUserFirstName" autocomplete="given-name">
+              </div>
+              <div class="field">
+                <label for="editUserLastName">Last Name</label>
+                <input id="editUserLastName" autocomplete="family-name">
+              </div>
+              <div class="field">
+                <label for="editUserEmail">Email</label>
+                <input id="editUserEmail" type="email" autocomplete="email">
+              </div>
+              <div class="field">
+                <label for="editUserPhone">Phone</label>
+                <input id="editUserPhone" autocomplete="tel">
+              </div>
+              <div class="field">
+                <label for="editUserRole">Role</label>
+                <select id="editUserRole">
+                  <option value="cashier">Cashier</option>
+                  <option value="manager">Manager</option>
+                  <option value="admin">Admin</option>
+                </select>
+              </div>
+              <div class="field checkbox">
+                <input id="editUserActive" type="checkbox" checked>
+                <label for="editUserActive">Active</label>
+              </div>
+              <div class="field checkbox">
+                <input id="editUserStaff" type="checkbox">
+                <label for="editUserStaff">Staff access</label>
+              </div>
+              <div class="field full">
+                <label for="editUserNotes">Notes</label>
+                <textarea id="editUserNotes"></textarea>
+              </div>
+            </div>
+            <div class="dialog-actions">
+              <button class="btn btn-green btn-sm" id="userDialogAction" type="button" onclick="saveUser()">Create User</button>
+              <button class="btn btn-sm" type="button" onclick="closeUserDialog()">Cancel</button>
+            </div>
+          </div>
+        </dialog>
+        {% endif %}
+      </div>
+    </section>
+  <div class="sidebar">
+    <div class="card">
+      <h3>Navigate</h3>
+      <a href="{% url 'revenue_cashier' %}" class="btn btn-green btn-sm" style="width:100%">Cashier View</a>
+      <a href="{% url 'rooms_config' %}" class="btn btn-yellow btn-sm" style="width:100%;margin-top:4px">Room Configuration</a>
+      <a href="{% url 'rooms_dashboard' %}" class="btn btn-primary btn-sm" style="width:100%;margin-top:4px">Dashboard View</a>
+      <a href="{% url 'maintenance:maintenance-dashboard' %}" class="btn btn-green btn-sm" style="width:100%;margin-top:4px">Maintenance Hub</a>
+      <a href="{% url 'admin:index' %}" class="btn btn-yellow btn-sm" style="width:100%;margin-top:4px">Django Admin</a>
+    </div>
+    <div class="card">
+      <h3>Activity Log</h3>
+      <div class="log" id="eventLog"></div>
+    </div>
+    <div class="card">
+      <h3>Account</h3>
+      <p class="muted" id="accountLabel">Signed in</p>
+      <button class="btn btn-sm btn-red" onclick="logout()">Logout</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = '/api/';
+let rooms = [];
+let vehicles = [];
+let vehicleShapes = [];
+let users = [];
+let selectedRoomId = null;
+let selectedVehicleId = null;
+let selectedUserId = null;
+const USER_PANEL_EDITABLE = {% if perms.users.change_user %}true{% else %}false{% endif %};
+const USER_TABLE_COLSPAN = USER_PANEL_EDITABLE ? 7 : 6;
+let loadAllPromise = null;
+
+function listResults(payload) {
+  if (Array.isArray(payload)) return payload;
+  if (payload && Array.isArray(payload.results)) return payload.results;
+  return [];
+}
+
+function token() { return localStorage.getItem('access_token'); }
+function csrfToken() {
+  return document.cookie.split('; ').find(row => row.startsWith('csrftoken='))?.split('=')[1] || '';
+}
+function authHeaders(extra={}) {
+  // This page is protected by Django's session. Do not let a stale JWT
+  // override the authenticated manager session in DRF.
+  return {...extra};
+}
+
+function log(msg, type='') {
+  const el = document.getElementById('eventLog');
+  if (!el) return;
+  const time = motelFormatTime(new Date(), true);
+  el.innerHTML = `<div class="log-entry ${type}"><span class="time">[${time}]</span>${msg}</div>` + el.innerHTML;
+  while (el.children.length > 60) el.removeChild(el.lastChild);
+}
+
+async function fetchJSON(path, opts={}) {
+  const headers = authHeaders(opts.headers || {});
+  const method = (opts.method || 'GET').toUpperCase();
+  if (opts.body && typeof opts.body === 'object') {
+    headers['Content-Type'] = 'application/json';
+    opts.body = JSON.stringify(opts.body);
+  }
+  if (!['GET', 'HEAD', 'OPTIONS', 'TRACE'].includes(method)) {
+    headers['X-CSRFToken'] = csrfToken();
+  }
+  const url = path.startsWith('http') ? path : API + path;
+  const res = await fetch(url, {...opts, headers, credentials: 'same-origin'});
+  if (res.status === 401) {
+    showLogin();
+    throw new Error('Login required');
+  }
+  if (res.status === 403) {
+    throw new Error('Your account does not have permission for this manager action.');
+  }
+  if (!res.ok) {
+    let detail = `HTTP ${res.status}`;
+    try { detail = (await res.json()).detail || detail; } catch(e) {}
+    throw new Error(detail);
+  }
+  if (res.status === 204) return null;
+  return res.json();
+}
+
+async function fetchAllResults(path) {
+  const items = [];
+  let nextPath = path;
+  while (nextPath) {
+    const payload = await fetchJSON(nextPath);
+    if (Array.isArray(payload)) return payload;
+    items.push(...listResults(payload));
+    nextPath = payload?.next || null;
+  }
+  return items;
+}
+
+async function login() {
+  const username = document.getElementById('loginUsername').value.trim();
+  const password = document.getElementById('loginPassword').value;
+  document.getElementById('loginError').textContent = '';
+  try {
+    const data = await fetch(API + 'auth/login/', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({username, password})
+    }).then(async res => {
+      if (!res.ok) throw new Error((await res.json()).detail || `HTTP ${res.status}`);
+      return res.json();
+    });
+    localStorage.setItem('access_token', data.access);
+    localStorage.setItem('refresh_token', data.refresh);
+    localStorage.setItem('manager_user', data.user?.username || username);
+    showApp();
+    await loadAll();
+  } catch(e) {
+    document.getElementById('loginError').textContent = e.message;
+  }
+}
+
+function logout() {
+  localStorage.removeItem('access_token');
+  localStorage.removeItem('refresh_token');
+  localStorage.removeItem('manager_user');
+  postLogout();
+}
+
+function postLogout() {
+  const form = document.createElement('form');
+  form.method = 'POST';
+  form.action = '/logout/';
+  const csrf = document.createElement('input');
+  csrf.type = 'hidden';
+  csrf.name = 'csrfmiddlewaretoken';
+  csrf.value = csrfToken();
+  form.appendChild(csrf);
+  document.body.appendChild(form);
+  form.submit();
+}
+
+function showLogin() {
+  window.location.href = '/login/?next=' + encodeURIComponent(window.location.pathname);
+}
+
+function showApp() {
+  document.getElementById('loginPanel').hidden = true;
+  document.getElementById('appPanel').hidden = false;
+  document.getElementById('accountLabel').textContent = 'Signed in as {{ user.username|escapejs }}';
+}
+
+function showPanel(id) {
+  document.querySelectorAll('.manager-panel').forEach(p => p.classList.toggle('active', p.id === id));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.panel === id));
+  if (id === 'vehiclesPanel') loadVehicles().catch(e => log(e.message, 'error'));
+  if (id === 'usersPanel') loadUsers().catch(e => log(e.message, 'error'));
+}
+
+function loadAll() {
+  if (loadAllPromise) return loadAllPromise;
+  loadAllPromise = Promise.all([loadRooms(), loadEvents(), loadMaintenance(), loadVehicleShapes(), loadVehicles(), checkHealth()])
+    .finally(() => { loadAllPromise = null; });
+  return loadAllPromise;
+}
+
+function roomStatusInfo(room) {
+  if (room.current_state === 'occupied' || room.current_state === 'manual_occupied') return {label: 'Occupied', cls: 'occupied'};
+  if (room.current_state === 'maintenance') return {label: 'Maintenance', cls: 'maintenance'};
+  if (room.current_state === 'error') return {label: 'Needs Review', cls: 'error'};
+  return {label: 'Vacant', cls: 'vacant'};
+}
+
+async function loadRooms() {
+  rooms = (await fetchAllResults('rooms/')).sort(compareRooms);
+  renderRooms();
+  updateStats();
+}
+
+function renderRooms() {
+  const grid = document.getElementById('roomGrid');
+  grid.innerHTML = rooms.length ? rooms.map(r => {
+    const status = roomStatusInfo(r);
+    return `<div class="room-card ${status.cls} ${r.room_id === selectedRoomId ? 'selected-room' : ''}" onclick="editRoom('${escapeHtml(r.room_id)}')">
+      <div class="pulse"></div>
+      <div class="room-num">${escapeHtml(r.room_number || r.room_id)}</div>
+      <div class="room-state">${status.label}</div>
+      <div class="room-details">$${Number(r.price || 0)} · ${escapeHtml(r.edificio || 'No edificio')} · Luma ${Number(r.cuenta_luma || 0)}</div>
+    </div>`;
+  }).join('') : '<p class="muted" style="padding:20px;text-align:center">No rooms</p>';
+}
+
+function updateStats() {
+  document.getElementById('totalRooms').textContent = rooms.length;
+  const counts = {occupied:0, vacant:0, maintenance:0};
+  rooms.forEach(r => {
+    const status = roomStatusInfo(r).cls;
+    if (status === 'occupied') counts.occupied += 1;
+    else if (status === 'maintenance') counts.maintenance += 1;
+    else counts.vacant += 1;
+  });
+  document.getElementById('occCount').textContent = counts.occupied;
+  document.getElementById('vacCount').textContent = counts.vacant;
+  document.getElementById('maintCount').textContent = counts.maintenance;
+}
+
+function editRoom(roomId) {
+  window.location.href = `{% url 'rooms_config' %}?room=${encodeURIComponent(roomId)}`;
+}
+
+async function loadEvents() {
+  try {
+    const data = listResults(await fetchJSON('events/')).slice(0, 12);
+    document.getElementById('eventsBody').innerHTML = data.length ? data.map(e => `<tr>
+      <td>${escapeHtml(formatTime(e.timestamp))}</td>
+      <td>${escapeHtml(e.room_id || '')}</td>
+      <td>${escapeHtml((e.event_type || '').replaceAll('_', ' '))}</td>
+      <td>${escapeHtml(e.source || '')}</td>
+    </tr>`).join('') : '<tr><td colspan="4" class="muted">No recent activity</td></tr>';
+  } catch(e) {
+    document.getElementById('eventsBody').innerHTML = '<tr><td colspan="4" class="muted">Activity unavailable</td></tr>';
+  }
+}
+
+async function loadMaintenance() {
+  try {
+    const maint = listResults(await fetchJSON('maintenance/upcoming/'));
+    document.getElementById('maintBody').innerHTML = maint.length ? maint.map(m => `<tr>
+      <td>${escapeHtml(m.room_id || '')}</td><td>${escapeHtml(m.category || '')}</td>
+      <td>${escapeHtml(m.status || '')}</td><td>${escapeHtml(m.next_due || '')}</td>
+      <td>$${Number(m.estimated_cost || 0)}</td>
+    </tr>`).join('') : '<tr><td colspan="5" class="muted">No upcoming maintenance</td></tr>';
+  } catch(e) {
+    document.getElementById('maintBody').innerHTML = '<tr><td colspan="5" class="muted">Maintenance unavailable</td></tr>';
+  }
+}
+
+function vehicleLabel(vehicle) {
+  if (!vehicle) return 'Vehicle';
+  const details = [vehicle.color, vehicle.make, vehicle.model].filter(Boolean).join(' ');
+  if (vehicle.license_plate && details) return `${vehicle.license_plate} - ${details}`;
+  return vehicle.license_plate || details || `Vehicle #${vehicle.id}`;
+}
+
+function createVehicle() {
+  openVehicleDialog();
+}
+
+function openVehicleDialog(vehicle = null) {
+  selectedVehicleId = vehicle?.id || null;
+  document.getElementById('vehicleDialogTitle').textContent = selectedVehicleId ? 'Edit Vehicle' : 'Create New Vehicle';
+  document.getElementById('vehicleDialogAction').textContent = selectedVehicleId ? 'Save Vehicle' : 'Create Vehicle';
+  document.getElementById('editVehiclePlate').value = vehicle?.license_plate || '';
+  document.getElementById('editVehicleColor').value = vehicle?.color || '';
+  document.getElementById('editVehicleMake').value = vehicle?.make || '';
+  document.getElementById('editVehicleModel').value = vehicle?.model || '';
+  document.getElementById('editVehicleShape').value = vehicle?.vehicle_shape || '';
+  document.getElementById('editVehicleNotes').value = vehicle?.notes || '';
+  const dialog = document.getElementById('vehicleDialog');
+  if (dialog.open) dialog.close();
+  if (typeof dialog.showModal === 'function') dialog.showModal();
+  else dialog.setAttribute('open', '');
+}
+
+function closeVehicleDialog() {
+  selectedVehicleId = null;
+  const dialog = document.getElementById('vehicleDialog');
+  if (dialog.open) dialog.close();
+  else dialog.removeAttribute('open');
+}
+
+async function loadVehicles() {
+  const q = document.getElementById('vehicleSearch')?.value.trim() || '';
+  const path = q ? `vehicles/?search=${encodeURIComponent(q)}&ordering=-updated_at` : 'vehicles/?ordering=-updated_at';
+  vehicles = await fetchAllResults(path);
+  renderVehicles();
+}
+
+async function loadVehicleShapes() {
+  vehicleShapes = await fetchAllResults('vehicle-shapes/');
+  const select = document.getElementById('editVehicleShape');
+  const selected = select.value;
+  select.innerHTML = '<option value="">Not specified</option>' + vehicleShapes
+    .filter(shape => shape.active)
+    .map(shape => `<option value="${Number(shape.id)}">${escapeHtml(shape.name)}</option>`).join('');
+  select.value = selected;
+}
+
+async function loadUsers() {
+  users = await fetchAllResults('users/');
+  renderUsers();
+}
+
+function renderVehicles() {
+  const body = document.getElementById('vehiclesBody');
+  if (!body) return;
+  body.innerHTML = vehicles.length ? vehicles.map(vehicle => `<tr>
+    <td>${escapeHtml(vehicle.license_plate || 'No plate')}</td>
+    <td>${escapeHtml([vehicle.color, vehicle.make, vehicle.model].filter(Boolean).join(' ') || 'Details not set')}</td>
+    <td>${escapeHtml(vehicle.notes || '')}</td>
+    <td>${escapeHtml(formatTime(vehicle.updated_at))}</td>
+    <td><button class="btn btn-sm btn-primary" type="button" onclick="editVehicle(${Number(vehicle.id)})">Edit</button></td>
+  </tr>`).join('') : '<tr><td colspan="5" class="muted">No vehicles found</td></tr>';
+}
+
+function renderUsers() {
+  const body = document.getElementById('usersBody');
+  if (!body) return;
+  if (!users.length) {
+    body.innerHTML = `<tr><td colspan="${USER_TABLE_COLSPAN}" class="muted">No users found</td></tr>`;
+    return;
+  }
+  body.innerHTML = users.map(user => `
+    <tr>
+      <td>${escapeHtml(user.username || '')}</td>
+      <td>${escapeHtml(user.role_display || user.role || '')}</td>
+      <td>${escapeHtml([user.first_name, user.last_name].filter(Boolean).join(' ') || '—')}</td>
+      <td>${user.is_active ? 'Active' : 'Inactive'}</td>
+      <td>${user.is_staff ? 'Staff' : 'No'}</td>
+      <td>${escapeHtml(formatTime(user.last_login) || 'Never')}</td>
+      ${USER_PANEL_EDITABLE ? `<td><button class="btn btn-sm btn-primary" type="button" onclick="editUser(${Number(user.id)})">Edit</button></td>` : ''}
+    </tr>
+  `).join('');
+}
+
+{% if perms.users.change_user %}
+function canManageUsers() {
+  return USER_PANEL_EDITABLE;
+}
+
+function openUserDialog(user = null) {
+  if (!canManageUsers()) {
+    log('User management requires an admin account.', 'error');
+    return;
+  }
+  const selected = typeof user === 'number'
+    ? users.find(item => Number(item.id) === Number(user)) || null
+    : user;
+  selectedUserId = selected?.id || null;
+  document.getElementById('userDialogTitle').textContent = selectedUserId ? 'Edit User' : 'Create User';
+  document.getElementById('userDialogAction').textContent = selectedUserId ? 'Save User' : 'Create User';
+  document.getElementById('editUserUsername').value = selected?.username || '';
+  document.getElementById('editUserPassword').value = '';
+  document.getElementById('editUserFirstName').value = selected?.first_name || '';
+  document.getElementById('editUserLastName').value = selected?.last_name || '';
+  document.getElementById('editUserEmail').value = selected?.email || '';
+  document.getElementById('editUserPhone').value = selected?.phone || '';
+  document.getElementById('editUserRole').value = selected?.role || 'cashier';
+  document.getElementById('editUserNotes').value = selected?.notes || '';
+  document.getElementById('editUserActive').checked = selected?.is_active ?? true;
+  document.getElementById('editUserStaff').checked = selected?.is_staff ?? false;
+  const dialog = document.getElementById('userDialog');
+  if (dialog.open) dialog.close();
+  if (typeof dialog.showModal === 'function') dialog.showModal();
+  else dialog.setAttribute('open', '');
+}
+
+function closeUserDialog() {
+  selectedUserId = null;
+  const dialog = document.getElementById('userDialog');
+  if (dialog.open) dialog.close();
+  else dialog.removeAttribute('open');
+}
+
+function userFormPayload() {
+  const payload = {
+    username: document.getElementById('editUserUsername').value.trim(),
+    password: document.getElementById('editUserPassword').value,
+    first_name: document.getElementById('editUserFirstName').value.trim(),
+    last_name: document.getElementById('editUserLastName').value.trim(),
+    email: document.getElementById('editUserEmail').value.trim(),
+    phone: document.getElementById('editUserPhone').value.trim(),
+    role: document.getElementById('editUserRole').value,
+    notes: document.getElementById('editUserNotes').value.trim(),
+    is_active: document.getElementById('editUserActive').checked,
+    is_staff: document.getElementById('editUserStaff').checked,
+  };
+  if (payload.role === 'admin') payload.is_staff = true;
+  return payload;
+}
+
+async function editUser(userId) {
+  if (!canManageUsers()) {
+    log('User management requires an admin account.', 'error');
+    return;
+  }
+  const user = users.find(item => Number(item.id) === Number(userId)) || await fetchJSON(`users/${encodeURIComponent(userId)}/`);
+  openUserDialog(user);
+}
+
+async function saveUser() {
+  if (!canManageUsers()) {
+    log('User management requires an admin account.', 'error');
+    return;
+  }
+  const isEditing = Boolean(selectedUserId);
+  const payload = userFormPayload();
+  if (isEditing && !payload.password) delete payload.password;
+  try {
+    const user = await fetchJSON(
+      isEditing ? `users/${encodeURIComponent(selectedUserId)}/` : 'users/create/',
+      {
+        method: isEditing ? 'PATCH' : 'POST',
+        body: payload,
+      }
+    );
+    log(`${escapeHtml(user.username || 'User')} ${isEditing ? 'updated' : 'created'}`, 'success');
+    closeUserDialog();
+    await loadUsers();
+  } catch(e) {
+    log(`User ${isEditing ? 'update' : 'create'} failed: ${escapeHtml(e.message)}`, 'error');
+  }
+}
+{% endif %}
+
+function clearVehicleSearch() {
+function clearVehicleSearch() {
+  document.getElementById('vehicleSearch').value = '';
+  loadVehicles().catch(e => log(e.message, 'error'));
+}
+
+async function editVehicle(vehicleId) {
+  let vehicle = vehicles.find(item => item.id === vehicleId);
+  if (!vehicle) vehicle = await fetchJSON(`vehicles/${encodeURIComponent(vehicleId)}/`);
+  openVehicleDialog(vehicle);
+}
+
+function vehicleFormPayload() {
+  return {
+    license_plate: document.getElementById('editVehiclePlate').value.trim().toUpperCase(),
+    color: document.getElementById('editVehicleColor').value.trim(),
+    make: document.getElementById('editVehicleMake').value.trim(),
+    model: document.getElementById('editVehicleModel').value.trim(),
+    vehicle_shape: document.getElementById('editVehicleShape').value || null,
+    notes: document.getElementById('editVehicleNotes').value.trim(),
+  };
+}
+
+async function saveVehicle() {
+  const isEditing = Boolean(selectedVehicleId);
+  try {
+    const vehicle = await fetchJSON(isEditing ? `vehicles/${encodeURIComponent(selectedVehicleId)}/` : 'vehicles/', {
+      method: isEditing ? 'PATCH' : 'POST',
+      body: vehicleFormPayload(),
+    });
+    log(`${vehicleLabel(vehicle)} ${isEditing ? 'updated' : 'created'}`, 'success');
+    closeVehicleDialog();
+    await Promise.all([loadVehicles(), loadRooms()]);
+  } catch(e) {
+    log(`Vehicle ${isEditing ? 'update' : 'create'} failed: ${e.message}`, 'error');
+  }
+}
+
+async function genReport(type) {
+  try {
+    await fetchJSON(`reports/generate/${type}/`, {method: 'POST'});
+    log(`${type} report generated`, 'success');
+  } catch(e) {
+    log(`Report failed: ${e.message}`, 'error');
+  }
+}
+
+async function checkHealth() {
+  try {
+    const h = await fetchJSON('health/');
+    const healthy = h.status === 'healthy';
+    document.getElementById('healthStatus').innerHTML = `<span><span class="dot ${healthy ? 'green' : 'red'}"></span> ${healthy ? 'Online' : 'Degraded'}</span>`;
+  } catch(e) {
+    document.getElementById('healthStatus').innerHTML = '<span><span class="dot red"></span> Offline</span>';
+  }
+}
+
+function formatTime(value) {
+  if (!value) return '';
+  return motelFormatDateTime(value, true) || value;
+}
+
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;', "'": '&#39;'}[ch]));
+}
+
+function compareRooms(a, b) {
+  const left = Number.parseInt(a.room_number || a.room_id || '0', 10);
+  const right = Number.parseInt(b.room_number || b.room_id || '0', 10);
+  if (Number.isFinite(left) && Number.isFinite(right) && left !== right) {
+    return left - right;
+  }
+  return String(a.room_number || a.room_id).localeCompare(String(b.room_number || b.room_id));
+}
+
+showApp();
+loadAll().catch(e => log(e.message, 'error'));
+document.addEventListener('motel:dashboard-update', () => loadAll().catch(() => {}));
+</script>
+{% endblock %}

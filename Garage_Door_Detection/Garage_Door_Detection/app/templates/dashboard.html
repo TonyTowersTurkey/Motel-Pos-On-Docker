@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ app_name }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/app.css') }}?v=23">
+  </head>
+  <body>
+    {% include "_page_header.html" %}
+    <main class="shell">
+      <header class="topbar">
+        <div>
+          <h1>Cameras</h1>
+          <p>Select a camera to view and manage the rooms in its view.</p>
+        </div>
+        <div class="topbar-actions">
+          <button id="open-protect-settings" class="button secondary" type="button">Protect Settings</button>
+          <button id="sync-unifi-cameras" class="button secondary" type="button">Sync UniFi</button>
+          <button id="capture-all-cameras" class="button secondary" type="button">Capture All</button>
+          <a class="button secondary" href="/docs">API Docs</a>
+        </div>
+      </header>
+
+      <p id="protect-message" class="form-message protect-message" aria-live="polite"></p>
+
+      <section class="panel" data-collapsible-id="camera-list">
+        <div class="panel-heading split-heading">
+          <div>
+            <h2>Camera List</h2>
+            <p id="camera-summary">Loading cameras...</p>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Location</th>
+                <th>Enabled</th>
+                <th>Last Snapshot</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="camera-rows">
+              <tr>
+                <td colspan="5">Loading cameras...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="panel" data-collapsible-id="recent-snapshots" data-collapsed="true">
+        <div class="panel-heading split-heading">
+          <div>
+            <h2>Recent Snapshots</h2>
+            <p id="snapshot-summary">Loading snapshots...</p>
+          </div>
+          <div class="snapshot-controls">
+            <label>
+              Camera
+              <select id="snapshot-camera-filter">
+                <option value="">All cameras</option>
+              </select>
+            </label>
+            <button id="refresh-snapshots" class="button secondary" type="button">Refresh</button>
+          </div>
+        </div>
+        <div id="snapshot-gallery" class="snapshot-gallery" aria-live="polite">
+          <p class="empty-gallery">Loading snapshots...</p>
+        </div>
+      </section>
+
+      <section id="rooms-panel" class="panel" data-collapsible-id="camera-rooms">
+        <div class="panel-heading split-heading">
+          <div>
+            <h2 id="rooms-title">Rooms</h2>
+            <p id="rooms-summary">Select a camera to see rooms.</p>
+          </div>
+          <form id="room-form" class="inline-form" hidden>
+            <input id="selected-camera-id" name="camera_id" type="hidden">
+            <label>
+              Room ID
+              <input name="room_id" type="number" min="1" placeholder="101" required disabled>
+            </label>
+            <label>
+              Name
+              <input name="name" type="text" placeholder="Room 101" required disabled>
+            </label>
+            <button id="add-room-button" class="button" type="submit" disabled>Add Room</button>
+          </form>
+        </div>
+        <p id="room-message" class="form-message" aria-live="polite"></p>
+        <div id="camera-snapshot-view" class="snapshot-view" hidden>
+          <div class="snapshot-heading">
+            <h3>Camera View</h3>
+            <a id="camera-snapshot-link" class="image-link" href="#" target="_blank" rel="noreferrer">Open full image</a>
+          </div>
+          <div class="snapshot-image-wrap">
+            <img id="camera-snapshot-image" src="" alt="Uploaded camera view">
+            <div id="camera-roi-overlay" class="camera-roi-overlay" aria-hidden="true"></div>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Room ID</th>
+                <th>Name</th>
+                <th>State</th>
+                <th>ROI</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="room-rows">
+              <tr>
+                <td colspan="5">Select a camera.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <dialog id="protect-settings-dialog" class="modal settings-modal">
+      <form id="protect-settings-form" class="modal-card">
+        <div class="modal-heading">
+          <div>
+            <h2>UniFi Protect Settings</h2>
+            <p>Configure the remote console used for camera discovery and snapshots.</p>
+          </div>
+          <button id="close-protect-settings" class="icon-button" type="button" aria-label="Close dialog">x</button>
+        </div>
+        <label>
+          Console ID
+          <input name="console_id" type="text" placeholder="UniFi console/host ID" required>
+        </label>
+        <div class="configuration-status">
+          <p>Connection mode: <strong id="protect-mode">Loading...</strong></p>
+          <p>API key: <strong id="protect-api-key-status">Loading...</strong></p>
+        </div>
+        <p>The API key remains server-side and must be configured in the <code>.env</code> file.</p>
+        <div class="modal-actions">
+          <p id="protect-settings-message" class="form-message" aria-live="polite"></p>
+          <button class="button secondary" type="button" data-close-protect-settings>Cancel</button>
+          <button class="button" type="submit">Save Settings</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="camera-details-dialog" class="modal camera-modal">
+      <form id="camera-details-form" class="modal-card">
+        <div class="modal-heading">
+          <div>
+            <h2>Edit Camera</h2>
+            <p id="camera-details-subtitle">Update camera details.</p>
+          </div>
+          <button id="close-camera-details-dialog" class="icon-button" type="button" aria-label="Close dialog">x</button>
+        </div>
+        <input name="id" type="hidden">
+        <div class="form-grid">
+          <label>
+            Name
+            <input name="name" type="text" required>
+          </label>
+          <label>
+            Location
+            <input name="location" type="text">
+          </label>
+          <label class="checkbox-field">
+            <input name="enabled" type="checkbox">
+            Enabled
+          </label>
+          <label class="checkbox-field">
+            <input name="automatic_snapshots" type="checkbox">
+            Automatic snapshot every minute
+          </label>
+          <label>
+            UniFi Camera ID
+            <input name="unifi_camera_id" type="text" readonly>
+          </label>
+          <label>
+            Last Snapshot At
+            <input name="last_snapshot_at" type="datetime-local">
+          </label>
+          <label class="wide-field">
+            Snapshot Image Path
+            <input name="snapshot_image_path" type="text">
+          </label>
+          <div class="wide-field upload-field">
+            <label>
+              Camera View Picture
+              <input id="camera-view-image" name="camera_view_image" type="file" accept="image/png,image/jpeg,image/webp">
+            </label>
+            <button id="upload-camera-view-button" class="button secondary" type="button">Upload Picture</button>
+            <a id="camera-view-link" class="image-link" href="#" target="_blank" rel="noreferrer" hidden>Open current picture</a>
+          </div>
+          <label class="wide-field">
+            Last Error
+            <input name="last_error" type="text">
+          </label>
+        </div>
+        <div class="modal-actions">
+          <p id="camera-details-message" class="form-message" aria-live="polite"></p>
+          <button class="button secondary" type="button" data-close-details-dialog>Cancel</button>
+          <button class="button" type="submit">Save Changes</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="roi-dialog" class="modal roi-modal">
+      <div class="modal-card roi-card">
+        <div class="modal-heading">
+          <div>
+            <h2 id="roi-title">Set ROI</h2>
+            <p id="roi-subtitle">Drag over the garage door area.</p>
+          </div>
+          <button id="close-roi-dialog" class="icon-button" type="button" aria-label="Close dialog">x</button>
+        </div>
+        <div class="roi-editor">
+          <img id="roi-image" src="" alt="Camera view for ROI selection">
+          <canvas id="roi-canvas"></canvas>
+        </div>
+        <div class="modal-actions">
+          <p id="roi-message" class="form-message" aria-live="polite"></p>
+          <button class="button secondary" type="button" data-close-roi-dialog>Cancel</button>
+          <button id="save-roi-button" class="button" type="button">Save ROI</button>
+        </div>
+      </div>
+    </dialog>
+
+    <script src="{{ url_for('static', path='/js/collapsible_sections.js') }}?v=1"></script>
+    <script src="{{ url_for('static', path='/js/dashboard.js') }}?v=12"></script>
+  </body>
+</html>

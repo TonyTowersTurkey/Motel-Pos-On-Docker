@@ -1,0 +1,113 @@
+[project]
+name = "motel-pos-django"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = [
+    "channels>=4.3,<5",
+    "channels-redis>=4.3,<5",
+    "django>=6.0.6",
+    "django-redis>=7.0.0",
+    "djangorestframework>=3.17.1",
+    "djangorestframework-simplejwt>=5.5.1",
+    "drf-spectacular>=0.29.0",
+    "gunicorn>=26.0.0",
+    "pillow>=12.0.0",
+    "psycopg-binary>=3.3.4",
+    "pydantic-settings>=2.14.1",
+    "python-json-logger>=4.1.0",
+    "reportlab>=4.4,<6",
+    "uvicorn>=0.49.0",
+]
+
+[dependency-groups]
+dev = [
+    "factory-boy>=3.3.3",
+    "pytest-cov>=7.1.0",
+    "pytest-django>=4.12.0",
+    "ruff>=0.15.17",
+]
+
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+fix = true
+show-fixes = true
+output-format = "grouped"
+exclude = [
+    ".bzr", ".direnv", ".eggs", ".git", ".hg", ".mypy_cache", ".nox", ".pants.d",
+    ".pyenv", ".pytest_cache", ".pytype", ".ruff_cache", ".svn", ".tox", ".venv",
+    ".vscode", "__pypackages__", "_build", "buck-out", "build", "dist",
+    "node_modules", "site-packages", "venv",
+]
+unsafe-fixes = false
+
+[tool.ruff.lint]
+select = [
+    "F",    # Pyflakes
+    "E",    # pycodestyle errors
+    "W",    # pycodestyle warnings
+    "I",    # isort
+    "N",    # pep8-naming
+    "UP",   # pyupgrade
+    "B",    # flake8-bugbear
+    "S",    # flake8-bandit (security)
+    "A",    # flake8-builtins
+    "C4",   # flake8-comprehensions
+    "T10",  # flake8-debugger
+    "SIM",  # flake8-simplify
+    "TCH",  # flake8-type-checking
+    "ARG",  # flake8-unused-arguments
+    "PTH",  # flake8-use-pathlib
+    "ERA",  # eradicate (commented-out code)
+    "PL",   # pylint
+    "RUF",  # ruff-specific
+    "DJ",   # flake8-django
+    "PERF", # perflint (performance)
+    "FBT",  # flake8-boolean-trap
+]
+ignore = [
+    "E501",   # Line length handled by ruff format
+    "S101",   # assert usage (re-enabled for tests)
+    "COM812", # Conflicts with formatter
+    "ISC001", # Conflicts with formatter
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*" = ["S101", "SLF001", "ARG001"]
+"__init__.py" = ["F401"]
+
+[tool.ruff.lint.isort]
+combine-as-imports = true
+section-order = ["future", "standard-library", "third-party", "first-party", "local-folder"]
+
+[tool.ruff.lint.flake8-type-checking]
+strict = true
+quote-annotations = true
+
+[tool.ruff.lint.flake8-bugbear]
+extend-immutable-calls = ["pydantic.Field", "django.conf.settings"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "lf"
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "config.settings"
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "--strict-markers",
+    "--strict-config",
+    "-ra",
+    "--tb=short",
+    "--cov=apps",
+    "--cov-report=term-missing",
+    "--cov-fail-under=80",
+]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks integration tests requiring external services",
+]

@@ -1,0 +1,27 @@
+<header class="site-header">
+  <div class="site-header-inner">
+    <a class="site-brand" href="/dashboard">{{ app_name }}</a>
+    <nav class="page-navigation" aria-label="Main navigation">
+      <a
+        class="page-navigation-link{% if active_page == 'dashboard' %} active{% endif %}"
+        href="/dashboard"
+        {% if active_page == 'dashboard' %}aria-current="page"{% endif %}
+      >Dashboard</a>
+      <a
+        class="page-navigation-link{% if active_page == 'cameras' %} active{% endif %}"
+        href="/cameras"
+        {% if active_page == 'cameras' %}aria-current="page"{% endif %}
+      >Cameras</a>
+      <a
+        class="page-navigation-link{% if active_page == 'training' %} active{% endif %}"
+        href="/training"
+        {% if active_page == 'training' %}aria-current="page"{% endif %}
+      >Training</a>
+      <a
+        class="page-navigation-link{% if active_page == 'room-pulse' %} active{% endif %}"
+        href="/room-pulse"
+        {% if active_page == 'room-pulse' %}aria-current="page"{% endif %}
+      >Room Pulse</a>
+    </nav>
+  </div>
+</header>

@@ -1,0 +1,193 @@
+{% extends "base/base.html" %}
+{% load static %}
+
+{% block title %}Dashboard — Motel Occupancy{% endblock %}
+{% block mobile_title %}Room Dashboard{% endblock %}
+
+{% block body %}
+<div class="header">
+  <h1>Motel Occupancy Dashboard<span class="badge">{% if debug %}DEV{% else %}PRO{% endif %}</span></h1>
+  <div class="status" id="healthStatus">
+    <span><span class="dot red" id="healthDot"></span> Checking...</span>
+  </div>
+</div>
+
+<div class="container">
+  <!-- Left: Rooms & Stats -->
+  <div class="main-panel">
+    <div class="stats" id="statsRow">
+      <div class="stat-card"><div class="num" id="totalRooms">0</div><div class="label">Total Rooms</div></div>
+      <div class="stat-card"><div class="num occupied" id="occCount">0</div><div class="label">Occupied</div></div>
+      <div class="stat-card"><div class="num vacant" id="vacCount">0</div><div class="label">Vacant</div></div>
+      <div class="stat-card"><div class="num maintenance" id="maintCount">0</div><div class="label">Maintenance</div></div>
+    </div>
+
+    <div class="card">
+      <h3>Rooms</h3>
+      <div class="room-grid" id="roomGrid"></div>
+    </div>
+
+    <div class="card">
+      <h3>Recent Events</h3>
+      <table class="events-table">
+        <thead><tr><th>Time</th><th>Room</th><th>Event</th><th>Confidence</th></tr></thead>
+        <tbody id="eventsBody"><tr><td colspan="4" style="text-align:center;color:var(--muted)">No events yet</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Right: Sidebar -->
+  <div class="sidebar">
+    <div class="card">
+      <h3>Manual Override</h3>
+      <input type="text" id="overRoom" value="{{ default_room|default:'101' }}" placeholder="room ID">
+      <input type="text" id="overUser" value="admin" placeholder="user">
+      <div>
+        <button class="btn btn-sm btn-green" onclick="overrideRoom('occupied')">Occupied</button>
+        <button class="btn btn-sm btn-red" onclick="overrideRoom('vacant')">Vacant</button>
+        <button class="btn btn-sm btn-yellow" onclick="overrideRoom('maintenance')">Maintenance</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Add Room</h3>
+      <input type="text" id="newRoomId" value="{{ new_room_default|default:'102' }}" inputmode="numeric" pattern="[0-9]+" placeholder="room ID (e.g. 205)">
+      <button class="btn btn-sm btn-primary" onclick="addRoom()" style="width:100%">Add Room</button>
+    </div>
+
+    <div class="card">
+      <h3>Reports</h3>
+      <div class="report-links">
+        <a href="{% url 'rooms_dashboard' %}" class="btn btn-primary btn-sm" onclick="genReport('daily_occupancy');return false;" style="width:100%">📊 Daily Occupancy Report</a>
+        <a href="{% url 'revenue_cashier' %}" class="btn btn-primary btn-sm" onclick="genReport('daily_sales');return false;" style="width:100%;margin-top:6px">💰 Daily Sales Report</a>
+        <button class="btn btn-yellow btn-sm" onclick="genReport('exceptions')" style="width:100%;margin-top:6px">⚠️ Exception Report</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Event Log</h3>
+      <div class="log" id="eventLog"></div>
+    </div>
+
+    {% if user.is_authenticated %}
+    <div class="card">
+      <h3>Account</h3>
+      <p style="font-size:0.85rem;color:var(--muted)">Signed in as {{ user.username }}</p>
+      <form method="post" action="{% url 'users_logout' %}" style="margin-top:8px">
+        {% csrf_token %}
+        <button class="btn btn-sm btn-red" type="submit">Logout</button>
+      </form>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<script>
+const API = '/api/';
+
+function log(msg, type='') {
+  const el = document.getElementById('eventLog');
+  const time = motelFormatTime(new Date(), true);
+  el.innerHTML = `<div class="log-entry ${type}"><span class="time">[${time}]</span>${msg}</div>` + el.innerHTML;
+  while (el.children.length > 50) el.removeChild(el.lastChild);
+}
+
+async function fetchJSON(path, opts={}) {
+  const headers = opts.headers || {};
+  if (opts.body && typeof opts.body === 'object' && !(opts.body instanceof FormData)) {
+    headers['Content-Type'] = 'application/json';
+    opts.body = JSON.stringify(opts.body);
+  }
+  const res = await fetch(API + path, {...opts, headers});
+  if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
+  return res.json();
+}
+
+async function loadRooms() {
+  try {
+    const rooms = await fetchJSON('rooms/');
+    renderRooms(rooms);
+    updateStats(rooms);
+  } catch(e) {
+    log(`Failed to load rooms: ${e.message}`, 'error');
+  }
+}
+
+function renderRooms(rooms) {
+  const grid = document.getElementById('roomGrid');
+  if (!rooms.length) {
+    grid.innerHTML = '<p style="color:var(--muted);padding:20px;text-align:center;">No rooms configured. Add a room to get started.</p>';
+    return;
+  }
+  grid.innerHTML = rooms.map(r => `
+    <div class="room-card ${r.current_state || 'unknown'}" onclick="selectRoom('${r.room_id}')">
+      <div class="pulse"></div>
+      <div class="room-num">${r.room_number || r.room_id}</div>
+      <div class="room-state">${(r.current_state||'Unknown').replace(/_/g,' ')}</div>
+      <div class="room-details">
+        ${r.current_vehicle ? `Vehicle: ${r.current_vehicle.license_plate || 'attached'}` : 'No vehicle attached'}
+      </div>
+    </div>
+  `).join('');
+}
+
+function updateStats(rooms) {
+  document.getElementById('totalRooms').textContent = rooms.length;
+  const counts = {occupied:0, vacant:0, maintenance:0, error:0};
+  rooms.forEach(r => { if (counts[r.current_state] !== undefined) counts[r.current_state]++; });
+  document.getElementById('occCount').textContent = counts.occupied;
+  document.getElementById('vacCount').textContent = counts.vacant;
+  document.getElementById('maintCount').textContent = counts.maintenance;
+}
+
+async function overrideRoom(action) {
+  const room = document.getElementById('overRoom').value;
+  const user = document.getElementById('overUser').value || 'admin';
+  try {
+    const res = await fetchJSON(`rooms/${encodeURIComponent(room)}/override/`, { method: 'POST', body: { user, action } });
+    log(`✓ Override ${room} → ${action} (by ${user})`, 'success');
+    loadRooms();
+  } catch(e) { log(`✗ ${e.message}`, 'error'); }
+}
+
+async function addRoom() {
+  const id = document.getElementById('newRoomId').value;
+  if (!id) return;
+  try {
+    await fetchJSON(`rooms/${encodeURIComponent(id)}/init/`, { method: 'POST' });
+    log(`✓ Room ${id} initialized`, 'success');
+    loadRooms();
+  } catch(e) { log(`✗ ${e.message}`, 'error'); }
+}
+
+async function genReport(type) {
+  try {
+    const res = await fetchJSON(`reports/generate/${type}/`, { method: 'POST' });
+    log(`✓ ${type} report generated`, 'success');
+  } catch(e) { log(`✗ Report generation failed: ${e.message}`, 'error'); }
+}
+
+async function selectRoom(roomId) {
+  try {
+    const status = await fetchJSON(`rooms/${encodeURIComponent(roomId)}/`);
+    log(`📋 ${roomId}: state=${status.current_state}`, '');
+  } catch(e) {}
+}
+
+async function checkHealth() {
+  try {
+    const h = await fetchJSON('health/');
+    document.getElementById('healthDot').className = `dot ${h.status === 'healthy' ? 'green' : 'red'}`;
+    document.getElementById('healthStatus').innerHTML = `<span><span class="dot green" style="background:var(--green)"></span> Online</span> <span>v${h.version||''}</span>`;
+  } catch(e) {
+    document.getElementById('healthDot').className = 'dot red';
+    document.getElementById('healthStatus').innerHTML = `<span><span class="dot red"></span> Offline</span>`;
+  }
+}
+
+checkHealth();
+loadRooms();
+log('Dashboard loaded. Select a room to view its current status.', '');
+document.addEventListener('motel:dashboard-update', () => loadRooms());
+</script>
+{% endblock %}

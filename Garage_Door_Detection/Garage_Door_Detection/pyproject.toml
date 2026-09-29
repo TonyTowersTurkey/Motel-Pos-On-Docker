@@ -1,0 +1,39 @@
+[project]
+name = "garage-door-detection"
+version = "0.1.0"
+description = "Local FastAPI server for garage door state detection from RTSP cameras."
+readme = "readme.md"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi==0.138.1",
+    "uvicorn[standard]==0.49.0",
+    "sqlalchemy==2.0.51",
+    "psycopg[binary]==3.3.4",
+    "pydantic-settings==2.14.2",
+    "jinja2==3.1.6",
+    "python-multipart==0.0.32",
+    "opencv-python-headless==4.13.0.92",
+    "httpx==0.28.1",
+    "torch==2.13.0",
+    "torchvision==0.28.0",
+    "ultralytics==8.4.95",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest==9.1.1",
+    "ruff==0.15.20",
+]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.uv.sources]
+torch = { index = "pytorch-cpu" }
+torchvision = { index = "pytorch-cpu" }
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"

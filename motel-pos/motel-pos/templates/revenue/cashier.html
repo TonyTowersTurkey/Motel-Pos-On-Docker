@@ -1,0 +1,1994 @@
+{% extends "base/base.html" %}
+{% load static %}
+
+{% block title %}Cashier — Motel Occupancy{% endblock %}
+{% block mobile_title %}Cashier POS{% endblock %}
+
+{% block extra_css %}
+<style>
+.login-page{display:flex;align-items:center;justify-content:center;height:100vh}
+.login-box{background:var(--card);border-radius:16px;border:1px solid var(--border);padding:48px 40px;text-align:center;width:380px}
+.login-box h1{font-size:1.8rem;margin-bottom:4px;color:var(--accent)}
+.login-box .subtitle{color:var(--muted);margin-bottom:28px;font-size:.9rem}
+.login-note{color:var(--muted);font-size:.8rem;line-height:1.45;margin:-18px 0 18px;text-align:left}
+.login-box input{width:100%;padding:12px 16px;border-radius:10px;border:1px solid var(--border);background:#0d1f36;color:var(--text);font-size:1rem;margin-bottom:12px;outline:none}
+.login-box input:focus{border-color:var(--accent)}
+.btn-login{width:100%;padding:14px;border-radius:10px;border:none;background:linear-gradient(135deg,var(--accent),#1d4ed8);color:#fff;font-size:1rem;font-weight:600;cursor:pointer;margin-bottom:12px}
+.btn-login:hover{opacity:.9}
+.login-error{color:var(--red);font-size:.85rem;margin-top:8px;display:none}
+.dash{display:none;height:100vh;flex-direction:column}
+.dash.active{display:flex}
+.topbar{background:linear-gradient(135deg,#0f2744,#0a1628);padding:16px 24px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border)}
+.topbar h2{font-size:1.1rem;color:var(--accent)}
+.topbar .user-info{display:flex;align-items:center;gap:10px;font-size:.85rem;color:var(--muted)}
+.pos-clock{display:flex;align-items:baseline;gap:6px;padding:6px 10px;border:1px solid var(--border);border-radius:8px;background:rgba(13,31,54,.72);white-space:nowrap}
+.pos-clock-label{font-size:.67rem;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}.pos-clock-time{font-variant-numeric:tabular-nums;font-size:.9rem;font-weight:800;color:var(--cyan)}
+.topbar .avatar{width:32px;height:32px;border-radius:50%;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700}
+.content{flex:1;padding:20px 24px;overflow-y:auto;display:flex;gap:20px;flex-wrap:wrap;align-content:flex-start}
+@media(max-width:800px){.content{flex-direction:column}}
+.rooms-panel{flex:1;min-width:0}
+.room-board-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:12px}
+.room-board-head h3{font-size:1.05rem;margin-bottom:3px}.room-board-head p{font-size:.76rem;color:var(--muted);margin:0}
+.room-board-updated{font-size:.72rem;color:var(--muted);white-space:nowrap;padding-top:4px}
+.room-tools{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+.room-filters{display:flex;gap:6px;flex-wrap:wrap}
+.room-filter{border:1px solid var(--border);background:#0d1f36;color:var(--muted);border-radius:999px;padding:7px 11px;font-size:.75rem;font-weight:700;cursor:pointer}
+.room-filter:hover{color:var(--text);border-color:#64748b}.room-filter.active{background:var(--accent);border-color:var(--accent);color:#fff}
+.room-search{width:min(240px,100%);padding:8px 11px;border-radius:9px;border:1px solid var(--border);background:#0d1f36;color:var(--text);font-size:.8rem;outline:none}
+.room-search:focus{border-color:var(--accent)}
+.selected-room-bar{display:none;padding:12px;border:1px solid rgba(59,130,246,.65);border-radius:12px;background:#0f2744}
+.selected-room-bar.active{display:block}.selected-room-main{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-bottom:10px}.selected-room-title{font-weight:800;color:var(--text)}
+.selected-room-details{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin-bottom:10px}.selected-room-field{min-width:0;padding:7px 8px;border-radius:8px;background:#0d1f36;border:1px solid var(--border)}.selected-room-field span{display:block;color:var(--muted);font-size:.6rem;text-transform:uppercase;margin-bottom:3px}.selected-room-field strong{display:block;font-size:.72rem;color:var(--text);overflow-wrap:anywhere}
+.selected-room-plate{grid-column:1/-1;position:relative;aspect-ratio:2/1;min-height:108px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:18px 12px 12px;border:4px double #374151;border-radius:10px;background:linear-gradient(145deg,#f8fafc 0%,#dbe4ea 48%,#f8fafc 100%);box-shadow:inset 0 0 0 2px #9ca3af,inset 0 0 14px rgba(15,23,42,.22),0 4px 10px rgba(2,6,23,.35);color:#111827;text-align:center;overflow:hidden}
+.selected-room-plate::before,.selected-room-plate::after{content:'';position:absolute;top:9px;width:9px;height:9px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#f8fafc,#64748b 45%,#111827 70%);box-shadow:0 1px 1px rgba(0,0,0,.5)}.selected-room-plate::before{left:15px}.selected-room-plate::after{right:15px}
+.plate-region{position:absolute;top:5px;font-size:.68rem;font-weight:900;letter-spacing:.14em;text-transform:uppercase}.plate-number{font-family:'Arial Narrow','Roboto Condensed',Impact,sans-serif;font-size:clamp(2rem,3vw,2.8rem);font-weight:900;line-height:1;letter-spacing:.08em;text-shadow:1px 1px 0 #fff,2px 2px 0 #64748b;-webkit-text-stroke:1px #111827;white-space:nowrap}.plate-motto{position:absolute;bottom:5px;font-size:.61rem;font-weight:800;letter-spacing:.02em;text-transform:uppercase}
+.selected-room-status{font-size:.72rem;font-weight:800;padding:3px 8px;border-radius:999px;background:#142742}.selected-room-note{font-size:.75rem;color:var(--muted)}
+.selected-room-status.clear{color:var(--green)}.selected-room-status.present{color:#93c5fd}.selected-room-status.warn{color:var(--yellow)}.selected-room-status.offline{color:#94a3b8}.selected-room-status.review,.selected-room-status.departure{color:var(--orange)}.selected-room-status.dirty{color:#c4b5fd}
+.selected-room-actions{display:flex;gap:7px;flex-wrap:wrap}.selected-room-actions button{padding:7px 11px;border-radius:8px;border:1px solid var(--border);cursor:pointer;font-size:.76rem;font-weight:700}
+.room-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(142px,1fr));gap:9px}
+.room-card{background:var(--card);border-radius:10px;border:1px solid var(--border);border-left:5px solid var(--border);padding:12px;cursor:pointer;transition:.16s;position:relative;min-height:118px}
+.room-card:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,0,0,.3)}
+.room-card.selected{box-shadow:0 0 0 2px var(--accent),0 8px 24px rgba(0,0,0,.35);transform:translateY(-2px)}
+.room-card.occupied{border-left-color:var(--accent)}.room-card.vacant{border-left-color:var(--green)}.room-card.maintenance{border-left-color:var(--yellow)}.room-card.error,.room-card.needs-review{border-left-color:var(--orange)}
+.room-card.departure-review{border-color:rgba(249,115,22,.8);border-left-color:var(--orange);background:linear-gradient(135deg,rgba(249,115,22,.18),var(--card) 65%);box-shadow:0 0 0 1px rgba(249,115,22,.28)}.room-card.dirty{border-left-color:#a78bfa;background:linear-gradient(135deg,rgba(139,92,246,.13),var(--card) 65%)}
+.room-card-top{display:flex;align-items:flex-start;justify-content:space-between;gap:6px;margin-bottom:7px}
+.room-num{font-size:1.18rem;font-weight:800;margin-bottom:0}
+.room-status-pill{font-size:.64rem;font-weight:800;text-transform:uppercase;letter-spacing:.3px;padding:3px 6px;border-radius:999px;background:#142742;white-space:nowrap}
+.room-card.vacant .room-status-pill{color:var(--green);background:rgba(34,197,94,.12)}.room-card.occupied .room-status-pill{color:#93c5fd;background:rgba(59,130,246,.15)}.room-card.maintenance .room-status-pill{color:var(--yellow);background:rgba(234,179,8,.13)}.room-card.needs-review .room-status-pill,.room-card.departure-review .room-status-pill{color:var(--orange);background:rgba(249,115,22,.18)}.room-card.dirty .room-status-pill{color:#c4b5fd;background:rgba(139,92,246,.18)}
+.room-state{color:var(--muted);font-size:.8rem;margin-bottom:8px}
+.room-signal{font-size:.77rem;font-weight:700;margin-bottom:3px}.room-signal.present{color:#93c5fd}.room-signal.clear{color:var(--green)}.room-signal.warn{color:var(--yellow)}.room-signal.offline{color:#94a3b8}.room-signal.review{color:var(--orange)}
+.room-signal-detail{font-size:.72rem;color:var(--muted);margin-bottom:8px}
+.room-session{font-size:.71rem;color:var(--cyan);font-weight:700;line-height:1.4;margin-bottom:3px}
+.room-meta{font-size:.72rem;color:var(--muted);line-height:1.6}
+.room-card-secondary{font-size:.69rem;color:var(--muted);line-height:1.45;margin-top:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pulse{display:none}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-bottom:16px}
+.stat{background:var(--card);border-radius:10px;padding:14px;text-align:center;border:1px solid var(--border)}
+.stat .n{font-size:1.8rem;font-weight:700}.stat .l{font-size:.7rem;color:var(--muted);text-transform:uppercase}
+.side{position:sticky;top:0;align-self:flex-start;width:260px;max-height:100%;overflow-y:auto;flex-shrink:0;display:flex;flex-direction:column;gap:14px}
+.panel{background:var(--card);border-radius:12px;border:1px solid var(--border);padding:16px}
+.panel h3{font-size:.75rem;text-transform:uppercase;color:var(--muted);margin-bottom:10px;letter-spacing:.5px}
+.room-status-panel{padding:12px}.room-status-panel-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:9px}.room-status-panel h3{margin:0}.room-status-panel .room-board-updated{font-size:.64rem;padding:0}
+.compact-room-stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}.compact-room-stat{display:flex;align-items:center;justify-content:space-between;gap:6px;padding:7px 8px;border:1px solid var(--border);border-radius:8px;background:#0d1f36}.compact-room-stat .n{font-size:1rem;font-weight:800}.compact-room-stat .l{font-size:.61rem;color:var(--muted);text-transform:uppercase}.compact-room-stat:first-child{grid-column:1/-1}
+.btn-row{display:flex;gap:4px;flex-wrap:wrap}
+input[type=range]{width:100%;accent-color:var(--accent)}
+.slider-val{text-align:center;font-size:2.5rem;font-weight:700;margin:6px 0;color:var(--accent)}
+.log{max-height:180px;overflow-y:auto;font-size:.74rem;font-family:'Cascadia Code',monospace}
+.le{padding:3px 0;border-bottom:1px solid rgba(51,65,85,.25);color:var(--muted)}
+.le .t{color:var(--accent)}.le.ok{color:var(--green)}.le.err{color:var(--red)}
+.activity-drawer{flex:0 0 100%;padding:0;overflow:hidden}
+.activity-drawer summary{cursor:pointer;list-style:none;padding:13px 16px;color:var(--muted);font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;display:flex;align-items:center;justify-content:space-between}
+.activity-drawer summary::-webkit-details-marker{display:none}
+.activity-drawer summary::after{content:'Show';color:var(--accent);font-size:.7rem;text-transform:none;letter-spacing:0}
+.activity-drawer[open] summary{border-bottom:1px solid var(--border)}
+.activity-drawer[open] summary::after{content:'Hide'}
+.activity-drawer .log{max-height:220px;padding:12px 16px}
+.recent-events{display:flex;flex-direction:column;gap:8px;max-height:220px;overflow-y:auto}
+.recent-event{border:1px solid var(--border);border-radius:10px;padding:9px 10px;background:#0d1f36}
+.recent-event .event-main{font-size:.8rem;font-weight:700;color:var(--text);display:flex;justify-content:space-between;gap:8px}
+.recent-event .event-room{color:var(--accent);white-space:nowrap}
+.recent-event .event-meta{font-size:.7rem;color:var(--muted);line-height:1.5;margin-top:4px}
+.recent-event.arrival{border-color:rgba(34,197,94,.65)}.recent-event.departure{border-color:rgba(239,68,68,.65)}.recent-event.review{border-color:rgba(249,115,22,.65)}
+input.text,select.text{width:100%;padding:7px 10px;border-radius:8px;border:1px solid var(--border);background:#0d1f36;color:var(--text);font-size:.82rem;margin-bottom:6px;outline:none}
+input.text:focus,select.text:focus{border-color:var(--accent)}
+.vehicle-tools{display:flex;flex-direction:column;gap:7px}
+.vehicle-room{font-size:.74rem;color:var(--muted);line-height:1.45}
+.vehicle-room strong{color:var(--accent)}
+.vehicle-selected-details{border:1px solid var(--border);border-radius:8px;background:#0d1f36;padding:8px 9px;font-size:.74rem;color:var(--muted);line-height:1.45}
+.vehicle-selected-details .vehicle-title{color:var(--text);font-weight:700;margin-bottom:3px}
+.vehicle-selected-details .vehicle-note{margin-top:4px;color:var(--muted)}
+.vehicle-context{font-size:.72rem;color:var(--muted);line-height:1.45;margin-top:5px;padding-top:6px;border-top:1px solid rgba(51,65,85,.35)}
+.vehicle-results{display:flex;flex-direction:column;gap:6px;max-height:130px;overflow-y:auto}
+.vehicle-result{border:1px solid var(--border);border-radius:8px;background:#0d1f36;padding:7px;font-size:.74rem;color:var(--muted)}
+.vehicle-result button{margin-top:5px}
+.vehicle-card-actions{display:flex;gap:6px;margin-top:7px;flex-wrap:wrap}
+.vehicle-card-actions button{padding:5px 9px;border-radius:7px;border:1px solid var(--border);cursor:pointer;font-size:.74rem;background:#142742;color:var(--text)}
+.vehicle-edit-actions{display:none;grid-template-columns:1fr 1fr;gap:6px}
+.vehicle-edit-actions.active{display:grid}
+.vehicle-shape-picker{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;max-height:230px;overflow:auto;margin:2px 0 8px;padding:2px}
+.vehicle-shape-choice{min-width:0;min-height:64px;display:flex;align-items:center;gap:7px;padding:6px;border:1px solid var(--border);border-radius:9px;background:#0d1f36;color:var(--muted);cursor:pointer;text-align:left}
+.vehicle-shape-choice:hover{border-color:#64748b;color:var(--text)}.vehicle-shape-choice.selected{border-color:var(--accent);background:rgba(59,130,246,.16);color:#fff;box-shadow:0 0 0 1px var(--accent)}
+.vehicle-shape-icon{width:52px;height:38px;flex:0 0 52px;display:grid;place-items:center;border-radius:6px;background:rgba(148,163,184,.08);overflow:hidden}.vehicle-shape-icon img{width:100%;height:100%;object-fit:contain}.vehicle-shape-glyph{font-size:1.45rem;filter:grayscale(1)}
+.vehicle-shape-name{font-size:.68rem;font-weight:750;line-height:1.15;overflow-wrap:anywhere}
+.dialog-grid .vehicle-shape-picker{grid-template-columns:repeat(4,minmax(0,1fr));max-height:260px}
+@media(max-width:700px){.dialog-grid .vehicle-shape-picker{grid-template-columns:repeat(2,minmax(0,1fr))}}
+textarea.text{resize:vertical;min-height:54px;font-family:inherit}
+@media(max-width:800px){.side{position:static;width:100%;max-height:none;overflow:visible}.room-search{width:100%}.room-board-head{align-items:flex-end}.room-grid{grid-template-columns:repeat(auto-fill,minmax(128px,1fr))}}
+@media(max-width:620px){.topbar{padding:12px;gap:8px}.topbar h2{font-size:.9rem}.pos-clock-label{display:none}.topbar #userName{display:none}}
+
+/* Tab styles */
+.tabs{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap}
+.tab{padding:7px 14px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;font-size:.78rem;font-weight:500}
+.tab.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+.tab:hover:not(.active){background:rgba(255,255,255,.06)}
+.pos-cashier-tabs{display:grid;gap:3px;margin:4px 0 0 31px;padding-left:10px;border-left:1px solid rgba(148,163,184,.2)}
+.pos-cashier-tab{width:100%;margin:0;padding:7px 9px;border:0;border-radius:7px;text-align:left;background:transparent;color:#94a3b8;font-size:.74rem}
+.pos-cashier-tab.active{background:rgba(59,130,246,.18);color:#dbeafe;box-shadow:inset 2px 0 #60a5fa}
+.role-restricted{display:none!important}
+.tab-content{display:none}.tab-content.active{display:block}
+.rep-btns{display:flex;flex-direction:column;gap:6px}
+.b-cyan{background:var(--cyan)!important;color:#fff!important}.b-purple{background:var(--purple)!important;color:#fff!important}
+.sales-controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:14px}
+.sales-controls input,.sales-controls select{padding:7px 10px;border-radius:8px;border:1px solid var(--border);background:#0d1f36;color:var(--text);font-size:.82rem;outline:none;width:auto}
+.sales-mode{display:flex;gap:6px;flex-wrap:wrap}
+.sales-view{display:none}.sales-view.active{display:block}
+.sales-note{font-size:.74rem;color:var(--muted);margin:0 0 12px}
+.duration-btn{padding:7px 12px;border-radius:8px;border:1px solid var(--border);background:#142742;color:var(--text);cursor:pointer;font-size:.78rem}
+.duration-btn.active{background:var(--accent);border-color:var(--accent);color:#fff}
+.sortable-th{background:transparent;border:0;color:var(--muted);cursor:pointer;font:inherit;text-transform:uppercase}
+.modal-backdrop{position:fixed;inset:0;background:rgba(2,6,23,.74);display:none;align-items:center;justify-content:center;padding:18px;z-index:1000}
+.modal-backdrop.active{display:flex}
+.rental-dialog{width:min(620px,100%);max-height:92vh;overflow-y:auto;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:18px;box-shadow:0 22px 70px rgba(0,0,0,.45)}
+.dialog-head{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:14px}
+.dialog-head h3{font-size:.9rem;color:var(--text);text-transform:uppercase;letter-spacing:.4px}
+.dialog-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.dialog-grid .full{grid-column:1/-1}
+.dialog-label{display:block;font-size:.72rem;color:var(--muted);text-transform:uppercase;margin-bottom:4px}
+.dialog-actions{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;margin-top:14px}
+.dialog-results{border:1px solid var(--border);border-radius:8px;background:#0d1f36;max-height:120px;overflow:auto;padding:7px;font-size:.75rem;color:var(--muted)}
+.dialog-result{padding:6px;border-bottom:1px solid rgba(51,65,85,.4)}
+.dialog-result:last-child{border-bottom:0}
+:root{--cyan:#06b6d4;--purple:#8b5cf6}
+</style>
+{% endblock %}
+
+{% block body %}
+<!-- LOGIN -->
+<div class="login-page" id="loginPage" style="{% if user.is_authenticated %}display:none!important;{% endif %}">
+  <form class="login-box" onsubmit="doLogin();return false;" novalidate>
+    <h1>Motel Desk</h1>
+    <p class="subtitle">Cashier Portal — Room Control</p>
+    <p class="login-note">Need the cashier login? Run <code>python manage.py bootstrap_motel_users</code> to provision cashier, manager, and admin in one rerunnable command. Use <code>python manage.py bootstrap_cashier --password &lt;new-password&gt;</code> if you only need the desk account; add <code>--reset-password</code> to refresh an existing password.</p>
+    <input type="text" id="loginUser" placeholder="Cashier username" autocomplete="username" autofocus value="{{ default_username|default:'' }}">
+    <input type="password" id="loginPass" placeholder="Password" autocomplete="current-password">
+    <button class="btn-login" type="submit">Sign In</button>
+    <div class="login-error" id="loginErr">Invalid username or password.</div>
+  </form>
+</div>
+
+{% if not login_only %}
+<!-- DASHBOARD (shown after login) -->
+<div class="dash" id="dashboard" style="{% if not user.is_authenticated %}display:none!important;{% else %}display:flex!important;{% endif %}">
+  <div class="topbar">
+    <h2>Motel Desk — Cashier View</h2>
+    <div class="user-info">
+      <div class="pos-clock" aria-label="Current Puerto Rico time">
+        <span class="pos-clock-label">Puerto Rico</span>
+        <time class="pos-clock-time" id="puertoRicoClock">--:--:--</time>
+      </div>
+      <span id="userName">{{ user.get_full_name|default:user.username }}</span>
+      <div class="avatar" id="userAvatar">{{ user.username|first|upper }}</div>
+      <button class="btn btn-sm" style="background:rgba(255,255,255,.08);padding:4px 10px;border-radius:6px;border:none;cursor:pointer" type="button" onclick="doLogout()">Logout</button>
+    </div>
+  </div>
+
+  <div class="content">
+    <div class="rooms-panel">
+      <!-- Tab: Rooms -->
+      <div class="tab-content active" id="tab-rooms">
+        <div class="room-tools">
+          <div class="room-filters" id="roomFilters" aria-label="Filter rooms by status">
+            <button class="room-filter active" type="button" data-room-filter="all" onclick="setRoomFilter('all',this)">All</button>
+            <button class="room-filter" type="button" data-room-filter="clear" onclick="setRoomFilter('clear',this)">Vacant</button>
+            <button class="room-filter" type="button" data-room-filter="present" onclick="setRoomFilter('present',this)">Occupied</button>
+            <button class="room-filter" type="button" data-room-filter="maintenance" onclick="setRoomFilter('maintenance',this)">Maintenance</button>
+            <button class="room-filter" type="button" data-room-filter="attention" onclick="setRoomFilter('attention',this)">Needs attention</button>
+          </div>
+          <input class="room-search" id="roomSearch" type="search" placeholder="Find room, building, or vehicle" aria-label="Find a room" oninput="renderRoomBoard()">
+        </div>
+        <div class="room-grid" id="roomGrid"></div>
+        <p class="sales-note" id="roomResultCount" style="margin-top:10px"></p>
+      </div>
+
+      <!-- Tab: Sales -->
+      <div class="tab-content" id="tab-sales">
+        <div class="sales-controls">
+          <input type="date" id="salesDate" value="{{ today|date:'Y-m-d'|default:'' }}">
+          <select id="salesShift" onchange="loadSalesSummary()">
+            <option value="all" selected>All 3 shifts · 23:00 previous day-22:59</option>
+            <option value="1">Shift 1 · 23:00-06:59</option>
+            <option value="2">Shift 2 · 07:00-14:59</option>
+            <option value="3">Shift 3 · 15:00-22:59</option>
+          </select>
+          <div class="sales-mode">
+            <button class="tab active" type="button" onclick="switchSalesView('shift',this)">Shift</button>
+            <button class="tab" type="button" onclick="switchSalesView('day',this)">Day</button>
+            <button class="tab" type="button" onclick="switchSalesView('week',this)">Week</button>
+          </div>
+          <button class="btn btn-green" type="button" onclick="loadSalesSummary()" style="padding:8px 16px;border-radius:8px;border:none;cursor:pointer;font-size:.85rem;font-weight:500;background:var(--green);color:#000">Load</button>
+        </div>
+        <p class="sales-note">Shift 1 is counted on the date it ends: previous day 23:00 through selected day 06:59.</p>
+        <div class="stats" id="salesStats" style="margin-bottom:14px"></div>
+        <div id="salesContent"><p style="color:var(--muted)">Choose a view and load sales.</p></div>
+      </div>
+
+      <!-- Tab: Cuadre/Revenue -->
+      <div class="tab-content" id="tab-cuadre">
+        <div style="display:flex;gap:12px;margin-bottom:14px;flex-wrap:wrap;align-items:center">
+          <input type="date" id="cuadreDate" value="{{ today|date:'Y-m-d'|default:'' }}" style="padding:7px 10px;border-radius:8px;border:1px solid var(--border);background:#0d1f36;color:var(--text);font-size:.82rem;outline:none;width:auto">
+          <select id="cuadreShift" style="padding:7px 10px;border-radius:8px;border:1px solid var(--border);background:#0d1f36;color:var(--text);font-size:.82rem;outline:none;width:auto">
+            <option value="1">Shift 1 - 23:00-06:59</option>
+            <option value="2">Shift 2 - 07:00-14:59</option>
+            <option value="3">Shift 3 - 15:00-22:59</option>
+          </select>
+          <button id="generateCuadreBtn" class="btn btn-green" onclick="loadCuadre()" style="padding:8px 16px;border-radius:8px;border:none;cursor:pointer;font-size:.85rem;font-weight:500;background:var(--green);color:#000">📊 Generate Cuadre</button>
+          <button class="btn btn-sm" type="button" onclick="downloadCuadrePdf()" style="padding:8px 16px;border-radius:8px;border:none;cursor:pointer;font-size:.82rem;font-weight:500;background:var(--cyan);color:#000">⬇️ Download PDF</button>
+          <button class="btn btn-purple" onclick="showRevenueSummary()" style="padding:8px 16px;border-radius:8px;border:none;cursor:pointer;font-size:.82rem;color:#fff;background:#8b5cf6">📈 Revenue Summary</button>
+        <p class="sales-note">Re-running the same date and shift updates the existing ledger instead of creating a duplicate.</p>
+        </div>
+        <div class="stats" id="cuadreStats" style="margin-bottom:14px"></div>
+        <div id="cuadreContent"><p style="color:var(--muted)">Select a date and shift, then click Generate Cuadre.</p></div>
+      </div>
+
+      <!-- Tab: Pricing Tiers -->
+      <div class="tab-content" id="tab-pricing">
+        <h3 style="margin-bottom:12px;color:var(--yellow)">Pricing Tiers</h3>
+        <table class="events-table">
+          <thead><tr><th>Code</th><th>Description</th><th>Price/Night</th><th>Status</th></tr></thead>
+          <tbody id="pricingBody"><tr><td colspan="4" style="text-align:center;color:var(--muted)">Loading...</td></tr></tbody>
+        </table>
+      </div>
+
+      <!-- Tab: Ledger History -->
+      <div class="tab-content" id="tab-ledger">
+        <h3 style="margin-bottom:12px;color:var(--green)">Shift Ledger History</h3>
+        <table class="events-table">
+          <thead><tr><th>Date</th><th>Shift</th><th>1 BGO</th><th>2 Y0</th><th>3 BOO</th><th>4 BUYS</th><th>9.S0</th><th>Subtotal</th><th>ATH TOTAL</th></tr></thead>
+          <tbody id="ledgerBody"><tr><td colspan="9" style="text-align:center;color:var(--muted)">Loading...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Sidebar -->
+    <div class="side">
+      <div class="panel room-status-panel">
+        <div class="room-status-panel-head">
+          <h3>Room Status</h3>
+          <div class="room-board-updated" id="roomBoardUpdated">Updating…</div>
+        </div>
+        <div class="compact-room-stats" id="statsRow"></div>
+      </div>
+
+      <div class="selected-room-bar" id="selectedRoomBar" aria-live="polite">
+        <div class="selected-room-main">
+          <span class="selected-room-title" id="selectedRoomTitle">Room</span>
+          <span class="selected-room-status" id="selectedRoomStatus">Status</span>
+          <span class="selected-room-note" id="selectedRoomNote"></span>
+        </div>
+        <div class="selected-room-details" id="selectedRoomDetails"></div>
+        <div class="selected-room-actions">
+          <button id="selectedRoomRentalButton" type="button" onclick="openRentalDialog()" style="background:var(--green);border-color:var(--green);color:#04130a">Create Rental</button>
+          <button id="selectedRoomVehicleButton" type="button" onclick="openVehicleAssignment()" style="background:var(--accent);border-color:var(--accent);color:#fff">Assign Vehicle</button>
+          <button id="selectedRoomDepartureButton" type="button" onclick="confirmVehicleDeparture()" style="display:none;background:var(--orange);border-color:var(--orange);color:#1c0a02">Vehicle Won't Return</button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h3>Recent Car Activity</h3>
+        <div class="recent-events" id="recentEvents">
+          <div style="color:var(--muted);font-size:.75rem">Sign in to load recent room changes.</div>
+        </div>
+      </div>
+
+      <div class="panel role-restricted" data-min-role="manager">
+        <h3>Reports</h3>
+        <div class="rep-btns">
+          <a href="{% url 'rooms_dashboard' %}" class="btn btn-primary btn-sm" onclick="genReport('daily_occupancy');return false;" style="width:100%;padding:7px 14px;border-radius:8px;border:none;cursor:pointer;font-size:.82rem;background:var(--accent);color:#fff">📊 Daily Occupancy</a>
+          <button class="btn btn-primary btn-sm" onclick="genReport('daily_sales')" style="width:100%;padding:7px 14px;border-radius:8px;border:none;cursor:pointer;font-size:.82rem;background:#6d28d9;color:#fff;margin-top:4px">💰 Daily Sales</button>
+          <button class="btn btn-yellow btn-sm" onclick="genReport('exceptions')" style="width:100%;padding:7px 14px;border-radius:8px;border:none;cursor:pointer;font-size:.82rem;background:#ca8a04;color:#fff;margin-top:4px">⚠️ Exceptions</button>
+        </div>
+      </div>
+    </div>
+
+    <details class="panel activity-drawer">
+      <summary>Activity Log</summary>
+      <div class="log" id="eventLog" aria-live="polite"></div>
+    </details>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="rentalDialog" role="dialog" aria-modal="true" aria-labelledby="rentalDialogTitle">
+  <div class="rental-dialog">
+    <div class="dialog-head">
+      <h3 id="rentalDialogTitle">Create Rental</h3>
+      <button class="btn btn-sm" type="button" onclick="closeRentalDialog()" style="background:#142742;color:var(--text);border:1px solid var(--border)">Close</button>
+    </div>
+    <div class="dialog-grid">
+      <div>
+        <label class="dialog-label" for="rentalDialogRoom">Room Number</label>
+        <input type="text" class="text" id="rentalDialogRoom" placeholder="101">
+      </div>
+      <div>
+        <label class="dialog-label" for="rentalDialogEntry">Entry Time (24-hour)</label>
+        <input type="text" class="text" id="rentalDialogEntry" inputmode="numeric" placeholder="YYYY-MM-DD HH:mm" pattern="[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}">
+      </div>
+      <div class="full">
+        <label class="dialog-label">Rental Time</label>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="duration-btn active" type="button" data-dialog-hours="8" onclick="setDialogRentalDuration(8,this)">Single · 8h</button>
+          <button class="duration-btn" type="button" data-dialog-hours="16" onclick="setDialogRentalDuration(16,this)">Double · 16h</button>
+          <button class="duration-btn" type="button" data-dialog-hours="24" onclick="setDialogRentalDuration(24,this)">Triple · 24h</button>
+        </div>
+      </div>
+      <div class="full">
+        <label class="dialog-label" for="rentalDialogPlateSearch">License Plate Search</label>
+        <div style="display:flex;gap:8px;align-items:center">
+          <input type="text" class="text" id="rentalDialogPlateSearch" placeholder="Search plate" oninput="this.value=this.value.toUpperCase()" onkeydown="if(event.key==='Enter'){searchRentalDialogVehicle();return false;}">
+          <button class="btn btn-primary btn-sm" type="button" onclick="searchRentalDialogVehicle()" style="margin-bottom:6px">Search</button>
+        </div>
+        <div class="dialog-results" id="rentalDialogVehicleResults">Search by plate, or enter details below to create a vehicle.</div>
+      </div>
+      <div>
+        <label class="dialog-label" for="rentalDialogPlate">Plate</label>
+        <input type="text" class="text" id="rentalDialogPlate" oninput="this.value=this.value.toUpperCase()">
+      </div>
+      <div>
+        <label class="dialog-label" for="rentalDialogColor">Color</label>
+        <input type="text" class="text" id="rentalDialogColor">
+      </div>
+      <div>
+        <label class="dialog-label" for="rentalDialogMake">Make</label>
+        <input type="text" class="text" id="rentalDialogMake">
+      </div>
+      <div>
+        <label class="dialog-label" for="rentalDialogModel">Model</label>
+        <input type="text" class="text" id="rentalDialogModel">
+      </div>
+      <div class="full">
+        <label class="dialog-label">Vehicle Shape</label>
+        <select id="rentalDialogShape" hidden><option value="">Not specified</option></select>
+        <div class="vehicle-shape-picker" id="rentalDialogShapePicker" aria-label="Select vehicle shape"></div>
+      </div>
+      <div class="full">
+        <label class="dialog-label" for="rentalDialogNotes">Vehicle Notes</label>
+        <textarea class="text" id="rentalDialogNotes" placeholder="Optional"></textarea>
+      </div>
+    </div>
+    <div class="dialog-actions">
+      <button class="btn btn-sm" type="button" onclick="closeRentalDialog()" style="background:#142742;color:var(--text);border:1px solid var(--border)">Cancel</button>
+      <button class="btn btn-green btn-sm" type="button" onclick="submitRentalDialog()" style="background:var(--green);color:#000">Create Rental</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="vehicleAssignmentDialog" role="dialog" aria-modal="true" aria-labelledby="vehicleAssignmentTitle">
+  <div class="rental-dialog" style="width:min(520px,100%)">
+    <div class="dialog-head"><h3 id="vehicleAssignmentTitle">Assign Vehicle</h3><button class="btn btn-sm" type="button" onclick="closeVehicleAssignment()">Close</button></div>
+    <label class="dialog-label" for="assignmentVehicleSearch">Plate, make, model, or color</label>
+    <div style="display:flex;gap:8px"><input class="text" id="assignmentVehicleSearch" onkeydown="if(event.key==='Enter'){searchAssignmentVehicles();return false;}"><button class="btn btn-primary btn-sm" type="button" onclick="searchAssignmentVehicles()">Search</button></div>
+    <div class="dialog-results" id="assignmentVehicleResults">Search for the vehicle to assign.</div>
+    <h3 style="margin:16px 0 8px">Create New Vehicle</h3>
+    <div class="dialog-grid">
+      <div><label class="dialog-label" for="assignmentVehiclePlate">Plate</label><input class="text" id="assignmentVehiclePlate" oninput="this.value=this.value.toUpperCase()"></div>
+      <div><label class="dialog-label" for="assignmentVehicleColor">Color</label><input class="text" id="assignmentVehicleColor"></div>
+      <div><label class="dialog-label" for="assignmentVehicleMake">Make</label><input class="text" id="assignmentVehicleMake"></div>
+      <div><label class="dialog-label" for="assignmentVehicleModel">Model</label><input class="text" id="assignmentVehicleModel"></div>
+      <div class="full"><label class="dialog-label" for="assignmentVehicleNotes">Notes</label><textarea class="text" id="assignmentVehicleNotes" placeholder="Optional"></textarea></div>
+    </div>
+    <button class="btn btn-green btn-sm" type="button" onclick="createAndAssignVehicle()" style="width:100%;margin-top:8px;background:var(--green);color:#000">Create &amp; Assign to Room</button>
+  </div>
+</div>
+{% endif %}
+
+<script>
+const API = '/api/';
+const LOGIN_ONLY = {% if login_only %}true{% else %}false{% endif %};
+const NEXT_URL = "{{ next_url|default:'/cashier/'|escapejs }}";
+let currentUser = {% if user.is_authenticated %}{"username":"{{ user.username }}","name":"{{ user.get_full_name|default:user.username }}","role":"{{ user.role|default:'cashier' }}","capabilities":{"cashier_access":{% if perms.rooms.view_room %}true{% else %}false{% endif %},"manager_access":{% if perms.rooms.change_room %}true{% else %}false{% endif %},"manage_users":{% if perms.users.change_user %}true{% else %}false{% endif %},"manage_vehicles":{% if perms.guests.change_vehicle %}true{% else %}false{% endif %},"manage_maintenance":{% if perms.workorders.view_workorder %}true{% else %}false{% endif %},"generate_reports":{% if perms.revenue.generate_management_reports %}true{% else %}false{% endif %}}}{% else %}null{% endif %};
+let roomsLoading = false;
+let selectedRoomId = document.getElementById('overRoom')?.value || '{{ default_room|default:"101" }}';
+let currentSalesView = 'shift';
+let editingVehicleId = null;
+let dialogRentalDurationHours = 8;
+let dialogVehicleId = null;
+let shiftRentalRows = [];
+let shiftRentalSort = {key: 'start_time', dir: 'asc'};
+let latestRooms = [];
+let vehicleShapes = [];
+let currentRoomFilter = 'all';
+let cuadreBusy = false;
+
+// --- Tab switching ---
+function switchTab(id, el) {
+  if (!roleCanAccess(el?.dataset?.minRole)) {
+    log('This section requires a manager account.', 'err');
+    return;
+  }
+  document.querySelectorAll('#dashTabs .tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('tab-' + id).classList.add('active');
+  if (id === 'cuadre') loadCuadraDefaults();
+  if (id === 'sales') loadSalesSummary();
+  if (id === 'pricing') loadPricing();
+  if (id === 'ledger') loadLedgerHistory();
+  if (window.innerWidth <= 1024) document.querySelector('[data-pos-nav-close]')?.click();
+}
+
+function switchSalesView(view, el) {
+  currentSalesView = view;
+  document.querySelectorAll('#tab-sales .sales-mode .tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('salesShift').style.display = view === 'shift' ? 'inline-block' : 'none';
+  loadSalesSummary();
+}
+
+// --- Logging ---
+function log(msg, type='') {
+  const el = document.getElementById('eventLog');
+  if (!el) return;
+  el.innerHTML = `<div class="le ${type}" style="padding:3px 0;border-bottom:1px solid rgba(51,65,85,.25);color:var(--muted)"><span class="t" style="color:var(--accent)">[${motelFormatTime(new Date(), true)}]</span>${msg}</div>` + el.innerHTML;
+}
+
+function updatePuertoRicoClock() {
+  const clock = document.getElementById('puertoRicoClock');
+  if (!clock) return;
+  const now = new Date();
+  clock.textContent = new Intl.DateTimeFormat('en-PR', {
+    timeZone: 'America/Puerto_Rico',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+    hourCycle: 'h23',
+  }).format(now);
+  clock.dateTime = now.toISOString();
+}
+
+// --- Auth ---
+function token() {
+  return localStorage.getItem('access_token');
+}
+
+function roleCanAccess(minRole) {
+  if (!minRole) return true;
+  if (minRole === 'admin') return Boolean(currentUser?.capabilities?.manage_users);
+  if (minRole === 'manager') return Boolean(currentUser?.capabilities?.manager_access);
+  return Boolean(currentUser?.capabilities?.cashier_access);
+}
+
+function applyRoleVisibility() {
+  document.querySelectorAll('[data-min-role]').forEach(el => {
+    const allowed = roleCanAccess(el.dataset.minRole);
+    el.classList.toggle('role-restricted', !allowed);
+    el.setAttribute('aria-hidden', allowed ? 'false' : 'true');
+    if (!allowed && el.classList.contains('active')) {
+      switchTab('rooms', document.querySelector('#dashTabs .tab'));
+    }
+  });
+}
+
+function setCurrentUser(user) {
+  currentUser = user || null;
+  const username = currentUser?.username || '';
+  const displayName = currentUser?.name || currentUser?.full_name || username || 'Cashier';
+  const userName = document.getElementById('userName');
+  const userAvatar = document.getElementById('userAvatar');
+  if (userName) userName.textContent = displayName;
+  if (userAvatar) userAvatar.textContent = username ? username.charAt(0).toUpperCase() : 'C';
+  applyRoleVisibility();
+}
+
+function showDashboard() {
+  if (LOGIN_ONLY) return;
+  document.getElementById('loginPage').style.setProperty('display', 'none', 'important');
+  document.getElementById('dashboard').style.setProperty('display', 'flex', 'important');
+  applyRoleVisibility();
+}
+
+function showLogin(message='') {
+  const dashboard = document.getElementById('dashboard');
+  if (dashboard) dashboard.style.setProperty('display', 'none', 'important');
+  document.getElementById('loginPage').style.setProperty('display', 'flex', 'important');
+  clearLoginPassword();
+  if (message) {
+    document.getElementById('loginErr').textContent = message;
+    document.getElementById('loginErr').style.display = 'block';
+  } else {
+    document.getElementById('loginErr').style.display = 'none';
+  }
+  focusLoginUsername();
+}
+
+function clearSession(message='') {
+  localStorage.removeItem('access_token');
+  localStorage.removeItem('refresh_token');
+  setCurrentUser(null);
+  showLogin(message);
+}
+
+function setSession(data) {
+  localStorage.setItem('access_token', data.access);
+  if (data.refresh) localStorage.setItem('refresh_token', data.refresh);
+  setCurrentUser(data.user || {username: data.username, name: data.name});
+}
+
+function doLogin() {
+  const u = document.getElementById('loginUser').value.trim();
+  const p = document.getElementById('loginPass').value;
+  if (!u || !p) {
+    document.getElementById('loginErr').textContent = 'Enter both username and password.';
+    document.getElementById('loginErr').style.display = 'block';
+    return;
+  }
+  log(`Trying login as ${u}...`);
+  fetchJSON('auth/login/', { method: 'POST', body: { username: u, password: p } })
+    .then(d => {
+      if (d.access) {
+        document.getElementById('loginErr').style.display = 'none';
+        setSession(d);
+        clearLoginPassword();
+        if (LOGIN_ONLY) {
+          window.location.href = NEXT_URL || '/cashier/';
+          return;
+        }
+        showDashboard();
+        loadRooms();
+        log('Signed in', 'ok');
+      } else {
+        clearLoginPassword();
+        document.getElementById('loginErr').textContent = 'Invalid credentials. Try again.';
+        document.getElementById('loginErr').style.display = 'block';
+        log('Login failed', 'err');
+      }
+    })
+    .catch(e => {
+      clearLoginPassword();
+      const apiMessage = friendlyError(e, 'Unable to sign in.');
+      const loginMessage = String(e?.message || '').startsWith('HTTP 401:')
+        ? (apiMessage || 'Invalid username or password.') + ' If this is a fresh server, run python manage.py bootstrap_cashier --password <new-password> or python manage.py bootstrap_motel_users.'
+        : `Login failed: ${apiMessage}`;
+      document.getElementById('loginErr').textContent = loginMessage;
+      document.getElementById('loginErr').style.display = 'block';
+      log('Login error', 'err');
+    });
+}
+
+async function bootstrapSession() {
+  if (LOGIN_ONLY) return;
+  if (!token()) {
+    {% if user.is_authenticated %}showDashboard(); loadRooms();{% endif %}
+    return;
+  }
+  try {
+    const user = await fetchJSON('users/profile/');
+    setCurrentUser(user);
+    showDashboard();
+    loadRooms();
+  } catch(e) {
+    clearSession('Session expired. Please sign in again.');
+  }
+}
+
+async function doLogout() {
+  const refresh = localStorage.getItem('refresh_token');
+  const accessToken = token();
+  try {
+    const headers = {
+      'Content-Type': 'application/json',
+      'X-CSRFToken': csrfToken(),
+    };
+    if (accessToken) {
+      headers.Authorization = 'Bearer ' + accessToken;
+    }
+    const logoutPayload = { refresh: refresh || '' };
+    const res = await fetch(API + 'auth/logout/', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(logoutPayload),
+    });
+    if (!res.ok && res.status !== 205) {
+      const text = await res.text();
+      throw new Error(formatApiError(res.status, text));
+    }
+  } catch(e) {
+    log('Logout token cleanup skipped: '+e.message, 'err');
+  }
+  localStorage.removeItem('access_token');
+  localStorage.removeItem('refresh_token');
+  setCurrentUser(null);
+  showLogin();
+  if (LOGIN_ONLY) {
+    window.location.replace(NEXT_URL || '/cashier/');
+  }
+}
+
+// --- API helper ---
+async function refreshAccessToken() {
+  const refresh = localStorage.getItem('refresh_token');
+  if (!refresh) return false;
+  try {
+    const res = await fetch(API + 'auth/token/refresh/', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': csrfToken(),
+      },
+      body: JSON.stringify({ refresh }),
+    });
+    if (!res.ok) return false;
+    const data = await res.json();
+    if (data.access) {
+      localStorage.setItem('access_token', data.access);
+      return true;
+    }
+  } catch (e) {}
+  return false;
+}
+
+async function fetchJSON(p, opts={}) {
+  const headers = opts.headers || {};
+  const method = (opts.method || 'GET').toUpperCase();
+  // Keep public login requests free of stale bearer tokens so a saved token does not block a fresh sign-in.
+  const accessToken = token();
+  const isPublicAuthRequest = p === 'auth/login/' || p === 'auth/token/obtain/' || p === 'auth/token/refresh/';
+  if (accessToken && !isPublicAuthRequest) headers['Authorization'] = 'Bearer ' + accessToken;
+  if (opts.body && typeof opts.body === 'object') {
+    headers['Content-Type'] = 'application/json';
+    opts.body = JSON.stringify(opts.body);
+  }
+  if (!['GET', 'HEAD', 'OPTIONS', 'TRACE'].includes(method)) {
+    headers['X-CSRFToken'] = csrfToken();
+  }
+  const res = await fetch(API + p, {...opts, headers});
+  if (!res.ok) {
+    const text = await res.text();
+    if (res.status === 401 && p !== 'auth/login/') {
+      if (p !== 'auth/token/refresh/' && await refreshAccessToken()) {
+        return fetchJSON(p, opts);
+      }
+      clearSession('Session expired. Please sign in again.');
+    }
+    throw new Error(formatApiError(res.status, text));
+  }
+  return res.json();
+}
+
+function formatApiError(status, text) {
+
+
+  let detail = text || '';
+  try {
+    detail = apiErrorDetail(JSON.parse(text)) || detail;
+  } catch(e) {}
+  return detail ? `HTTP ${status}: ${detail}` : `HTTP ${status}`;
+}
+
+function apiErrorDetail(payload) {
+  if (!payload) return '';
+  if (typeof payload === 'string') return payload;
+  if (payload.detail) return payload.detail;
+  if (Array.isArray(payload.errors)) {
+    return payload.errors.map(error => {
+      const field = error.attr ? `${error.attr}: ` : '';
+      return `${field}${error.detail || error.code || 'Invalid value'}`;
+    }).join('; ');
+  }
+  if (typeof payload === 'object') {
+    return Object.entries(payload).map(([field, messages]) => {
+      const value = Array.isArray(messages) ? messages.join(', ') : String(messages);
+      return field === 'non_field_errors' ? value : `${field}: ${value}`;
+    }).join('; ');
+  }
+  return '';
+}
+
+function friendlyError(error, fallback='Request failed.') {
+  return String(error?.message || fallback).replace(/^HTTP \d+:\s*/, '').trim();
+}
+
+function csrfToken() {
+  return document.cookie.split('; ').find(row => row.startsWith('csrftoken='))?.split('=')[1] || '';
+}
+
+function clearLoginPassword() {
+  const loginPass = document.getElementById('loginPass');
+  if (loginPass) loginPass.value = '';
+}
+
+function focusLoginUsername() {
+  const loginUser = document.getElementById('loginUser');
+  if (!loginUser) return;
+  try {
+    loginUser.focus({preventScroll: true});
+  } catch (e) {
+    loginUser.focus();
+  }
+}
+
+// --- Cashier room signals ---
+function roomStatusInfo(room) {
+  const state = String(room.current_state || 'unknown').toLowerCase();
+  if (state === 'maintenance') return {label: 'Maintenance', detail: 'Room blocked from rentals', cardClass: 'maintenance', tone: 'warn', bucket: 'maintenance'};
+  if (state === 'occupied') return {label: 'Occupied', detail: 'Room in use', cardClass: 'occupied', tone: 'present', bucket: 'present'};
+  if (state === 'manual_occupied') return {label: 'Occupied', detail: 'Manual override', cardClass: 'occupied', tone: 'present', bucket: 'present'};
+  if (['vacant', 'manual_vacant'].includes(state) && room.current_vehicle) return {label: 'Vacant', detail: 'Vehicle attached · confirm departure', cardClass: 'departure-review', tone: 'departure', bucket: 'clear', requiresDepartureConfirmation: true};
+  if (state === 'vacant') return {label: 'Vacant', detail: 'No vehicle detected', cardClass: 'vacant', tone: 'clear', bucket: 'clear'};
+  if (state === 'manual_vacant') return {label: 'Vacant', detail: 'Manual override', cardClass: 'vacant', tone: 'clear', bucket: 'clear'};
+  if (state === 'dirty') return {label: 'Dirty', detail: 'Awaiting cleaning', cardClass: 'dirty', tone: 'dirty', bucket: 'dirty'};
+  return {label: 'Check Room', detail: state.replace(/_/g, ' '), cardClass: 'needs-review', tone: 'review', bucket: 'review'};
+}
+
+function stayDuration(timestamp) {
+  if (!timestamp) return 'Duration unknown';
+  const startedAt = new Date(timestamp);
+  if (Number.isNaN(startedAt.getTime())) return 'Duration unknown';
+  const seconds = Math.max(0, Math.floor((Date.now() - startedAt.getTime()) / 1000));
+  if (seconds < 60) return `${seconds}s active`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m active`;
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = minutes % 60;
+  if (hours < 24) {
+    return remainingMinutes ? `${hours}h ${remainingMinutes}m active` : `${hours}h active`;
+  }
+  const days = Math.floor(hours / 24);
+  const remainingHours = hours % 24;
+  return remainingHours ? `${days}d ${remainingHours}h active` : `${days}d active`;
+}
+
+function occupancyConfidenceLine(room) {
+  const event = room?.latest_occupancy_event;
+  const confidence = Number(event?.confidence);
+  if (!event || !Number.isFinite(confidence)) return '';
+  const label = event.event_type ? event.event_type.replace(/_/g, ' ') : 'latest event';
+  return `Decision confidence: ${Math.round(confidence * 100)}% · ${label}`;
+}
+
+function vehicleLabel(vehicle) {
+  if (!vehicle) return 'None';
+  const details = [vehicle.color, vehicle.make, vehicle.model].filter(Boolean).join(' ');
+  if (vehicle.license_plate && details) return `${vehicle.license_plate} - ${details}`;
+  return vehicle.license_plate || details || `Vehicle #${vehicle.id}`;
+}
+
+function selectedRoomPlateLabel(plate) {
+  const value = String(plate || '');
+  return /^[A-Za-z]{3}[0-9]{3}$/.test(value)
+    ? `${value.slice(0, 3)}-${value.slice(3)}`
+    : value;
+}
+
+function vehicleContextSummary(vehicle) {
+  const roomContexts = Array.isArray(vehicle?.room_context?.current_rooms) ? vehicle.room_context.current_rooms : [];
+  const rentalContexts = Array.isArray(vehicle?.room_context?.active_rental_sessions) ? vehicle.room_context.active_rental_sessions : [];
+  const lines = [];
+  if (roomContexts.length) {
+    const rooms = roomContexts.map(room => room.room_number || room.room_id).filter(Boolean);
+    if (rooms.length) lines.push(`Attached rooms: ${rooms.join(', ')}`);
+  }
+  if (rentalContexts.length) {
+    const rentals = rentalContexts.map(session => {
+      const status = session.status ? ` (${session.status.replace(/_/g, ' ')})` : '';
+      const roomLabel = session.room_number || session.room_id;
+      return `${roomLabel}${status}`;
+    }).filter(Boolean);
+    if (rentals.length) lines.push(`Active rentals: ${rentals.join(', ')}`);
+  }
+  return lines;
+}
+
+function vehicleContextHtml(vehicle) {
+  const lines = vehicleContextSummary(vehicle);
+  if (!lines.length) return '';
+  return `<div class="vehicle-context">${lines.map(line => `<div>${escapeHtml(line)}</div>`).join('')}</div>`;
+}
+
+function roomVehicleLine(room, status) {
+  const vehicle = room?.current_vehicle;
+  if (vehicle) return `Vehicle: ${vehicleLabel(vehicle)}`;
+  if (status?.bucket === 'present' || status?.bucket === 'review') return 'Vehicle: Not attached';
+  return '';
+}
+
+function occupancySessionLine(room, status) {
+  const session = room?.active_occupancy_session;
+  if (session?.check_in) {
+    const label = status?.bucket === 'present' ? 'Car present since' : 'Active stay';
+    return `<div class="room-session">${escapeHtml(label)}: ${escapeHtml(eventWhen(session.check_in))} &middot; ${escapeHtml(stayDuration(session.check_in))}</div>`;
+  }
+  const event = room?.latest_occupancy_event;
+  const eventType = String(event?.event_type || '').toLowerCase();
+  if (status?.bucket === 'present' && event?.timestamp && ['arrival', 'check_in', 'vehicle_attached'].includes(eventType)) {
+    return `<div class="room-session">First detected: ${escapeHtml(eventWhen(event.timestamp))}</div>`;
+  }
+  return '';
+}
+
+function vehicleDetailHtml(vehicle) {
+  if (!vehicle) return 'No vehicle attached to the selected room.';
+  const plate = vehicle.license_plate || 'No plate';
+  const style = [vehicle.color, vehicle.make, vehicle.model].filter(Boolean).join(' ') || 'Details not set';
+  const notes = vehicle.notes ? `<div class="vehicle-note">${escapeHtml(vehicle.notes)}</div>` : '';
+  const context = vehicleContextHtml(vehicle);
+  const editAction = roleCanAccess('manager') ? `
+    <div class="vehicle-card-actions">
+      <button type="button" onclick="startVehicleEdit(${Number(vehicle.id)})">Edit Details</button>
+    </div>` : '';
+  return `
+    <div class="vehicle-title">${escapeHtml(plate)}</div>
+    <div>${escapeHtml(style)}</div>
+    ${notes}
+    ${context}
+    ${editAction}`;
+}
+
+function updateVehicleRoomHint(vehicle=null) {
+  document.getElementById('vehicleRoomId').textContent = selectedRoomId || 'None';
+  document.getElementById('vehicleAttached').textContent = vehicleLabel(vehicle);
+  document.getElementById('selectedVehicleDetails').innerHTML = vehicleDetailHtml(vehicle);
+}
+
+function setVehicleResultsMessage(message, type='') {
+  const color = type === 'err' ? 'var(--red)' : (type === 'ok' ? 'var(--green)' : 'var(--muted)');
+  document.getElementById('vehicleResults').innerHTML = `<div style="color:${color};font-size:.75rem">${escapeHtml(message)}</div>`;
+}
+
+function prependVehicleResultsMessage(message, type='') {
+  const color = type === 'err' ? 'var(--red)' : (type === 'ok' ? 'var(--green)' : 'var(--muted)');
+  document.getElementById('vehicleResults').insertAdjacentHTML('afterbegin', `<div style="color:${color};font-size:.75rem;margin-bottom:6px">${escapeHtml(message)}</div>`);
+}
+
+function clearVehicleForm() {
+  ['vehiclePlate', 'vehicleColor', 'vehicleMake', 'vehicleModel', 'vehicleShape', 'vehicleNotes'].forEach(id => {
+    const input = document.getElementById(id);
+    if (input) input.value = '';
+  });
+  renderVehicleShapePicker('vehicleShapePicker', 'vehicleShape');
+}
+
+function setVehicleForm(vehicle) {
+  document.getElementById('vehiclePlate').value = vehicle?.license_plate || '';
+  document.getElementById('vehicleColor').value = vehicle?.color || '';
+  document.getElementById('vehicleMake').value = vehicle?.make || '';
+  document.getElementById('vehicleModel').value = vehicle?.model || '';
+  document.getElementById('vehicleShape').value = vehicle?.vehicle_shape || '';
+  document.getElementById('vehicleNotes').value = vehicle?.notes || '';
+  renderVehicleShapePicker('vehicleShapePicker', 'vehicleShape');
+}
+
+function setVehicleEditMode(vehicleId=null) {
+  editingVehicleId = vehicleId;
+  document.getElementById('vehicleEditActions').classList.toggle('active', Boolean(vehicleId));
+}
+
+function eventStatusInfo(event) {
+  const eventType = String(event.event_type || '').toLowerCase();
+  if (['arrival', 'check_in'].includes(eventType)) return {label: 'Car Arrived', tone: 'arrival'};
+  if (['departure', 'check_out'].includes(eventType)) return {label: 'Car Left', tone: 'departure'};
+  if (eventType === 'vehicle_attached') return {label: 'Vehicle Attached', tone: 'arrival'};
+  if (eventType === 'vehicle_cleared') return {label: 'Vehicle Cleared', tone: 'departure'};
+  if (eventType === 'maintenance') return {label: 'Maintenance', tone: 'review'};
+  if (eventType === 'manual_override') return {label: 'Manual Override', tone: 'review'};
+  return {label: eventType.replace(/_/g, ' ') || 'Room Change', tone: 'review'};
+}
+
+function eventWhen(timestamp) {
+  if (!timestamp) return 'Time unknown';
+  const eventDate = new Date(timestamp);
+  if (Number.isNaN(eventDate.getTime())) return 'Time unknown';
+  return motelFormatDateTime(eventDate);
+}
+
+// --- Stats ---
+function updateStats(rooms) {
+  const c = {present:0, clear:0, maintenance:0, dirty:0, review:0};
+  rooms.forEach(r => { c[roomStatusInfo(r).bucket]++; });
+  document.getElementById('statsRow').innerHTML = `
+    <div class="compact-room-stat">
+      <div class="l">Rooms</div><div class="n" style="color:var(--accent)">${rooms.length}</div>
+    </div>
+    <div class="compact-room-stat">
+      <div class="l">Occupied</div><div class="n" style="color:var(--accent)">${c.present}</div>
+    </div>
+    <div class="compact-room-stat">
+      <div class="l">Vacant</div><div class="n" style="color:var(--green)">${c.clear}</div>
+    </div>
+    <div class="compact-room-stat">
+      <div class="l">Maintenance</div><div class="n" style="color:var(--yellow)">${c.maintenance}</div>
+    </div>
+    <div class="compact-room-stat">
+      <div class="l">Dirty</div><div class="n" style="color:#c4b5fd">${c.dirty}</div>
+    </div>
+    <div class="compact-room-stat">
+      <div class="l">Check Room</div><div class="n" style="color:var(--orange)">${c.review}</div>
+    </div>`;
+}
+
+function sortRoomsForCashier(rooms) {
+  return [...rooms].sort((a, b) => {
+    return String(a.room_number || a.room_id).localeCompare(String(b.room_number || b.room_id), undefined, {
+      numeric: true,
+      sensitivity: 'base',
+    });
+  });
+}
+
+// --- Rooms ---
+function setRoomFilter(filter, button=null) {
+  currentRoomFilter = filter;
+  document.querySelectorAll('.room-filter').forEach(item => {
+    item.classList.toggle('active', item.dataset.roomFilter === filter);
+  });
+  renderRoomBoard();
+}
+
+function roomMatchesCurrentView(room) {
+  const bucket = roomStatusInfo(room).bucket;
+  const matchesFilter = currentRoomFilter === 'all'
+    || currentRoomFilter === bucket
+    || (currentRoomFilter === 'attention' && ['review', 'dirty'].includes(bucket));
+  if (!matchesFilter) return false;
+
+  const query = document.getElementById('roomSearch')?.value.trim().toLowerCase() || '';
+  if (!query) return true;
+  const vehicle = room.current_vehicle || {};
+  const searchable = [
+    room.room_number,
+    room.room_id,
+    room.edificio,
+    vehicle.license_plate,
+    vehicle.color,
+    vehicle.make,
+    vehicle.model,
+  ].filter(Boolean).join(' ').toLowerCase();
+  return searchable.includes(query);
+}
+
+function updateSelectedRoomBar() {
+  const bar = document.getElementById('selectedRoomBar');
+  const room = latestRooms.find(item => item.room_id === selectedRoomId);
+  if (!bar || !room) {
+    bar?.classList.remove('active');
+    return;
+  }
+  const status = roomStatusInfo(room);
+  document.getElementById('selectedRoomTitle').textContent = `Room ${room.room_number || room.room_id}`;
+  document.getElementById('selectedRoomStatus').textContent = status.label;
+  document.getElementById('selectedRoomStatus').className = `selected-room-status ${status.tone}`;
+  document.getElementById('selectedRoomNote').textContent = roomVehicleLine(room, status) || status.detail;
+  const fields = [
+    ['Room ID', room.room_id],
+    ['Price', room.price != null ? money(room.price) : '—'],
+    ['Vehicle', room.current_vehicle ? vehicleLabel(room.current_vehicle) : 'Not assigned'],
+    ['Entered', room.entered_at ? eventWhen(room.entered_at) : 'Not entered'],
+    ['Max Stay', room.max_stay_at ? eventWhen(room.max_stay_at) : '—'],
+  ];
+  const plate = selectedRoomPlateLabel(room.current_vehicle?.license_plate || 'NO PLATE');
+  const plateHtml = `<div class="selected-room-plate" aria-label="License plate ${escapeHtml(plate)}"><span class="plate-region">Puerto Rico</span><strong class="plate-number">${escapeHtml(plate)}</strong><span class="plate-motto">Isla del Encanto</span></div>`;
+  document.getElementById('selectedRoomDetails').innerHTML = plateHtml + fields.map(([label, value]) => `<div class="selected-room-field"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`).join('');
+  const rentalButton = document.getElementById('selectedRoomRentalButton');
+  const canRent = ['clear', 'present'].includes(status.bucket) && !status.requiresDepartureConfirmation;
+  rentalButton.disabled = !canRent;
+  rentalButton.style.opacity = canRent ? '1' : '.45';
+  rentalButton.style.cursor = canRent ? 'pointer' : 'not-allowed';
+  rentalButton.title = canRent ? 'Create a rental for this room' : 'This room is not available for a rental';
+  const departureButton = document.getElementById('selectedRoomDepartureButton');
+  departureButton.style.display = status.requiresDepartureConfirmation ? 'inline-block' : 'none';
+  bar.classList.add('active');
+}
+
+async function confirmVehicleDeparture() {
+  const room = latestRooms.find(item => item.room_id === selectedRoomId);
+  if (!room || !roomStatusInfo(room).requiresDepartureConfirmation) return;
+  const roomLabel = room.room_number || room.room_id;
+  if (!window.confirm(`Confirm the vehicle in Room ${roomLabel} will not return? The room will be marked Dirty.`)) return;
+  try {
+    await fetchJSON(`rooms/${encodeURIComponent(room.room_id)}/confirm-departure/`, {method: 'POST'});
+    log(`Vehicle departure confirmed for Room ${roomLabel}; room marked dirty.`, 'ok');
+    await loadRooms();
+  } catch (error) {
+    log(`Could not confirm departure: ${friendlyError(error)}`, 'err');
+  }
+}
+
+function openVehicleAssignment() {
+  const room = latestRooms.find(item => item.room_id === selectedRoomId);
+  if (!room) return;
+  document.getElementById('vehicleAssignmentTitle').textContent = `Assign Vehicle · Room ${room.room_number || room.room_id}`;
+  document.getElementById('assignmentVehicleSearch').value = '';
+  ['assignmentVehiclePlate', 'assignmentVehicleColor', 'assignmentVehicleMake', 'assignmentVehicleModel', 'assignmentVehicleNotes'].forEach(id => { document.getElementById(id).value = ''; });
+  document.getElementById('assignmentVehicleResults').textContent = 'Search for the vehicle to assign.';
+  document.getElementById('vehicleAssignmentDialog').classList.add('active');
+}
+
+function closeVehicleAssignment() { document.getElementById('vehicleAssignmentDialog').classList.remove('active'); }
+
+async function searchAssignmentVehicles() {
+  const query = document.getElementById('assignmentVehicleSearch').value.trim();
+  const target = document.getElementById('assignmentVehicleResults');
+  if (!query) { target.textContent = 'Enter vehicle details to search.'; return; }
+  try {
+    const vehicles = listResults(await fetchJSON(`vehicles/?search=${encodeURIComponent(query)}`));
+    target.innerHTML = vehicles.length ? vehicles.slice(0, 8).map(vehicle => `<div class="dialog-result"><strong>${escapeHtml(vehicleLabel(vehicle))}</strong><br><button class="btn btn-primary btn-sm" type="button" onclick="assignVehicleToSelectedRoom(${Number(vehicle.id)})">Assign to Room</button></div>`).join('') : 'No matching vehicles found. Create it below and assign it immediately.';
+  } catch (error) { target.textContent = `Vehicle search failed: ${friendlyError(error)}`; }
+}
+
+async function assignVehicleToSelectedRoom(vehicleId) {
+  try {
+    await fetchJSON(`rooms/${encodeURIComponent(selectedRoomId)}/vehicle/`, {method: 'POST', body: {vehicle_id: vehicleId}});
+    closeVehicleAssignment();
+    await loadRooms();
+    log(`Vehicle assigned to ${selectedRoomId}`, 'ok');
+  } catch (error) { document.getElementById('assignmentVehicleResults').textContent = `Assignment failed: ${friendlyError(error)}`; }
+}
+
+async function createAndAssignVehicle() {
+  const payload = {
+    license_plate: document.getElementById('assignmentVehiclePlate').value.trim().toUpperCase(),
+    color: document.getElementById('assignmentVehicleColor').value.trim(),
+    make: document.getElementById('assignmentVehicleMake').value.trim(),
+    model: document.getElementById('assignmentVehicleModel').value.trim(),
+    notes: document.getElementById('assignmentVehicleNotes').value.trim(),
+  };
+  const target = document.getElementById('assignmentVehicleResults');
+  if (!payload.license_plate && !payload.color && !payload.make && !payload.model) {
+    target.textContent = 'Enter at least a plate, color, make, or model.';
+    return;
+  }
+  try {
+    const vehicle = await fetchJSON('vehicles/', {method: 'POST', body: payload});
+    await assignVehicleToSelectedRoom(vehicle.id);
+  } catch (error) { target.textContent = `Could not create vehicle: ${friendlyError(error)}`; }
+}
+
+function renderRoomBoard() {
+  const visibleRooms = latestRooms.filter(roomMatchesCurrentView);
+  renderRooms(visibleRooms);
+  updateSelectedRoomBar();
+  const count = document.getElementById('roomResultCount');
+  if (count) count.textContent = `Showing ${visibleRooms.length} of ${latestRooms.length} rooms`;
+}
+
+function renderRooms(rooms) {
+  document.getElementById('roomGrid').innerHTML = rooms.length ? rooms.map(r => {
+    const status = roomStatusInfo(r);
+    const occupancyLine = occupancySessionLine(r, status);
+    const vehicleLine = roomVehicleLine(r, status);
+    const secondaryLine = vehicleLine || status.detail;
+    return `
+    <div class="room-card ${status.cardClass} ${r.room_id === selectedRoomId ? 'selected' : ''}" role="button" tabindex="0" aria-label="Room ${escapeHtml(r.room_number||r.room_id)}, ${escapeHtml(status.label)}" onclick="selectRoom('${r.room_id}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();selectRoom('${r.room_id}')}" data-room-id="${escapeHtml(r.room_id)}">
+      <div class="pulse"></div>
+      <div class="room-card-top">
+        <div class="room-num">${escapeHtml(r.room_number||r.room_id)}</div>
+        <div class="room-status-pill">${escapeHtml(status.label)}</div>
+      </div>
+      <div class="room-signal-detail">${escapeHtml(status.detail)}</div>
+      ${occupancyLine}
+      <div class="room-card-secondary" title="${escapeHtml(secondaryLine)}">${escapeHtml(secondaryLine)}</div>
+    </div>`;
+  }).join('') : '<p style="color:var(--muted);padding:24px;text-align:center;grid-column:1/-1">No rooms match this filter.</p>';
+}
+
+async function loadRooms() {
+  if (roomsLoading) return;
+  roomsLoading = true;
+  try {
+    const rooms = sortRoomsForCashier(await fetchAllPages('rooms/?page_size=100'));
+    latestRooms = rooms;
+    renderRoomBoard();
+    updateStats(rooms);
+    const updated = document.getElementById('roomBoardUpdated');
+    if (updated) updated.textContent = `Live · updated ${motelFormatTime(new Date(), true)}`;
+    await loadRecentEvents();
+  } catch(e) {
+    log('Load failed: '+e.message, 'err');
+  } finally {
+    roomsLoading = false;
+  }
+}
+
+async function refreshSelectedRoomVehicleHint(rooms) {
+  const selected = rooms.find(room => room.room_id === selectedRoomId);
+  if (selected) {
+    updateVehicleRoomHint(selected.current_vehicle);
+    return;
+  }
+  if (!selectedRoomId) {
+    updateVehicleRoomHint(null);
+    return;
+  }
+  try {
+    const room = await fetchJSON(`rooms/${encodeURIComponent(selectedRoomId)}/`);
+    updateVehicleRoomHint(room.current_vehicle);
+  } catch(e) {
+    updateVehicleRoomHint(null);
+    log(`Could not refresh vehicle for ${selectedRoomId}: ${e.message}`, 'err');
+  }
+}
+
+function renderRecentEvents(events) {
+  document.getElementById('recentEvents').innerHTML = events.length ? events.slice(0, 8).map(event => {
+    const status = eventStatusInfo(event);
+    const confidence = Number(event.confidence || 0);
+    const confidenceText = Number.isFinite(confidence) ? `${Math.round(confidence * 100)}% confidence` : 'Confidence unknown';
+    const notes = event.notes ? `<br>${escapeHtml(event.notes)}` : '';
+    const roomLabel = event.room_number ? `Room ${event.room_number}` : event.room_id;
+    return `
+    <div class="recent-event ${status.tone}">
+      <div class="event-main"><span>${escapeHtml(status.label)}</span><span class="event-room">${escapeHtml(roomLabel)}</span></div>
+      <div class="event-meta">${eventWhen(event.timestamp)} · ${escapeHtml(event.source || 'unknown')} · ${confidenceText}${notes}</div>
+    </div>`;
+  }).join('') : '<div style="color:var(--muted);font-size:.75rem">No recent car activity yet.</div>';
+}
+
+async function loadRecentEvents() {
+  try {
+    const eventTypes = [
+      'arrival',
+      'departure',
+      'check_in',
+      'check_out',
+      'vehicle_attached',
+      'vehicle_cleared',
+      'manual_override'
+    ];
+    const recentEventQuery = eventTypes.map(eventType => encodeURIComponent(eventType)).join(',');
+    const eventsData = await fetchJSON(`events/?event_type=${recentEventQuery}`);
+    const filteredEvents = listResults(eventsData).filter(event => eventTypes.includes(event.event_type));
+    renderRecentEvents(filteredEvents);
+  } catch(e) {
+    document.getElementById('recentEvents').innerHTML = '<div style="color:var(--red);font-size:.75rem">Could not load recent activity.</div>';
+  }
+}
+
+// --- Vehicle tracking ---
+function vehiclePayloadFromForm() {
+  return {
+    license_plate: document.getElementById('vehiclePlate').value.trim().toUpperCase(),
+    color: document.getElementById('vehicleColor').value.trim(),
+    make: document.getElementById('vehicleMake').value.trim(),
+    model: document.getElementById('vehicleModel').value.trim(),
+    vehicle_shape: document.getElementById('vehicleShape').value || null,
+    notes: document.getElementById('vehicleNotes').value.trim(),
+  };
+}
+
+function renderVehicleResults(vehicles) {
+  const target = document.getElementById('vehicleResults');
+  if (!vehicles.length) {
+    target.innerHTML = '<div style="color:var(--muted);font-size:.75rem">No matching vehicles.</div>';
+    return;
+  }
+  target.innerHTML = vehicles.slice(0, 8).map(vehicle => {
+    const editAction = roleCanAccess('manager') ? `
+      <button class="btn btn-sm" type="button" onclick="startVehicleEdit(${vehicle.id})" style="width:100%;padding:5px 10px;border-radius:7px;border:1px solid var(--border);cursor:pointer;font-size:.75rem;background:#142742;color:var(--text)">Edit Details</button>` : '';
+    const context = vehicleContextHtml(vehicle);
+    return `
+      <div class="vehicle-result">
+        <strong style="color:var(--text)">${escapeHtml(vehicleLabel(vehicle))}</strong>
+        ${vehicle.notes ? `<br>${escapeHtml(vehicle.notes)}` : ''}
+        ${context}
+        <button class="btn btn-primary btn-sm" type="button" onclick="attachVehicle(${vehicle.id})" style="width:100%;padding:5px 10px;border-radius:7px;border:none;cursor:pointer;font-size:.75rem;background:var(--accent);color:#fff">Attach to Room</button>
+        ${editAction}
+      </div>`;
+  }).join('');
+}
+
+async function startVehicleEdit(vehicleId) {
+  if (!roleCanAccess('manager')) {
+    setVehicleResultsMessage('Vehicle edits require a manager account.', 'err');
+    log('Vehicle edits require a manager account.', 'err');
+    return;
+  }
+  try {
+    const vehicle = await fetchJSON(`vehicles/${encodeURIComponent(vehicleId)}/`);
+    setVehicleForm(vehicle);
+    setVehicleEditMode(vehicle.id);
+    setVehicleResultsMessage(`Editing ${vehicleLabel(vehicle)}.`, '');
+  } catch(e) {
+    setVehicleResultsMessage(`Load vehicle failed: ${friendlyError(e)}`, 'err');
+    log('Load vehicle failed: '+e.message, 'err');
+  }
+}
+
+function cancelVehicleEdit() {
+  setVehicleEditMode(null);
+  clearVehicleForm();
+  setVehicleResultsMessage('Vehicle edit cancelled.', '');
+}
+
+async function saveVehicleDetails() {
+  if (!editingVehicleId) {
+    setVehicleResultsMessage('Choose a vehicle to edit first.', 'err');
+    return;
+  }
+  if (!roleCanAccess('manager')) {
+    setVehicleResultsMessage('Vehicle edits require a manager account.', 'err');
+    log('Vehicle edits require a manager account.', 'err');
+    return;
+  }
+  try {
+    const vehicle = await fetchJSON(`vehicles/${encodeURIComponent(editingVehicleId)}/`, {
+      method: 'PATCH',
+      body: vehiclePayloadFromForm(),
+    });
+    setVehicleEditMode(null);
+    clearVehicleForm();
+    setVehicleResultsMessage(`${vehicleLabel(vehicle)} updated.`, 'ok');
+    log(`Vehicle ${vehicleLabel(vehicle)} updated`, 'ok');
+    await loadRooms();
+    await searchVehicles();
+  } catch(e) {
+    setVehicleResultsMessage(`Save vehicle failed: ${friendlyError(e)}`, 'err');
+    log('Save vehicle failed: '+e.message, 'err');
+  }
+}
+
+async function searchVehicles() {
+  const q = document.getElementById('vehicleSearch').value.trim();
+  const path = q ? `vehicles/?search=${encodeURIComponent(q)}` : 'vehicles/';
+  try {
+    const data = await fetchJSON(path);
+    renderVehicleResults(listResults(data));
+  } catch(e) {
+    setVehicleResultsMessage(`Vehicle search failed: ${friendlyError(e)}`, 'err');
+    log('Vehicle search failed: '+e.message, 'err');
+  }
+}
+
+async function searchSelectedRoomVehicle() {
+  const room = selectedRoomId || document.getElementById('overRoom').value.trim();
+  if (!room) {
+    setVehicleResultsMessage('Select a room before searching by room.', 'err');
+    log('Select a room before searching by room.', 'err');
+    return;
+  }
+  await refreshVehicleSearchForRoom(room);
+}
+
+async function refreshVehicleSearchForRoom(room) {
+  document.getElementById('vehicleSearch').value = room;
+  await searchVehicles();
+}
+
+async function attachVehicle(vehicleId) {
+  const room = selectedRoomId || document.getElementById('overRoom').value;
+  if (!room) {
+    log('Select a room before attaching a vehicle.', 'err');
+    setVehicleResultsMessage('Select a room before attaching a vehicle.', 'err');
+    return null;
+  }
+  try {
+    const updatedRoom = await fetchJSON(`rooms/${encodeURIComponent(room)}/vehicle/`, { method: 'POST', body: { vehicle_id: vehicleId } });
+    const label = vehicleLabel(updatedRoom.current_vehicle);
+    updateVehicleRoomHint(updatedRoom.current_vehicle);
+    await refreshVehicleSearchForRoom(room);
+    setVehicleResultsMessage(`${label} attached to ${room}.`, 'ok');
+    log(`Vehicle attached to ${room}`, 'ok');
+    loadRooms();
+    loadRecentEvents();
+    return updatedRoom;
+  } catch(e) {
+    setVehicleResultsMessage(`Attach vehicle failed: ${friendlyError(e)}`, 'err');
+    log('Attach vehicle failed: '+e.message, 'err');
+    return null;
+  }
+}
+
+async function clearRoomVehicle() {
+  const room = selectedRoomId || document.getElementById('overRoom').value;
+  if (!room) {
+    log('Select a room before clearing a vehicle.', 'err');
+    setVehicleResultsMessage('Select a room before clearing a vehicle.', 'err');
+    return;
+  }
+  try {
+    await fetchJSON(`rooms/${encodeURIComponent(room)}/vehicle/`, { method: 'POST', body: { clear: true } });
+    updateVehicleRoomHint(null);
+    await refreshVehicleSearchForRoom(room);
+    setVehicleResultsMessage(`Vehicle cleared from ${room}.`, 'ok');
+    log(`Vehicle cleared from ${room}`, 'ok');
+    loadRooms();
+    loadRecentEvents();
+  } catch(e) {
+    setVehicleResultsMessage(`Clear vehicle failed: ${friendlyError(e)}`, 'err');
+    log('Clear vehicle failed: '+e.message, 'err');
+  }
+}
+
+async function createVehicleAndAttach() {
+  const payload = vehiclePayloadFromForm();
+  if (!payload.license_plate && !payload.color && !payload.make && !payload.model) {
+    setVehicleResultsMessage('Enter at least a plate, color, make, or model before creating a vehicle.', 'err');
+    log('Enter at least a plate, color, make, or model before creating a vehicle.', 'err');
+    return;
+  }
+  try {
+    const vehicle = await fetchJSON('vehicles/', { method: 'POST', body: payload });
+    const updatedRoom = await attachVehicle(vehicle.id);
+    if (!updatedRoom) return;
+    setVehicleEditMode(null);
+    clearVehicleForm();
+  } catch(e) {
+    const message = friendlyError(e);
+    if (payload.license_plate && message.toLowerCase().includes('already exists')) {
+      document.getElementById('vehicleSearch').value = payload.license_plate;
+      await searchVehicles();
+      prependVehicleResultsMessage(`Plate ${payload.license_plate} already exists. Attach the matching vehicle below.`, 'err');
+    } else {
+      setVehicleResultsMessage(`Create vehicle failed: ${message}`, 'err');
+    }
+    log('Create vehicle failed: '+e.message, 'err');
+  }
+}
+
+// --- Actions ---
+function resolveSelectedRoom(purpose) {
+  const room = (selectedRoomId || document.getElementById('overRoom')?.value || '').trim();
+  if (!room) {
+    const message = `Select a room before ${purpose}.`;
+    log(message, 'err');
+    return null;
+  }
+  return room;
+}
+
+function focusVehicleLookup() {
+  const input = document.getElementById('vehicleSearch');
+  if (!input) return;
+  input.scrollIntoView({behavior: 'smooth', block: 'center'});
+  input.focus();
+}
+
+async function override(action) {
+  const room = resolveSelectedRoom(`overriding to ${action}`);
+  if (!room) return;
+  try {
+    const r = await fetchJSON(`rooms/${encodeURIComponent(room)}/override/`, { method: 'POST', body: { user: currentUser?.username || 'cashier', action } });
+    log(`✓ Override ${room} → ${action}`, 'ok');
+    loadRooms();
+    loadRecentEvents();
+  } catch(e) { log('✗ '+e.message, 'err'); }
+}
+
+async function selectRoom(id) {
+  selectedRoomId = id;
+  renderRoomBoard();
+  try {
+    const s = await fetchJSON(`rooms/${encodeURIComponent(id)}/`);
+    const roomIndex = latestRooms.findIndex(room => room.room_id === id);
+    if (roomIndex >= 0) latestRooms[roomIndex] = s;
+    renderRoomBoard();
+    log(`${id}: selected, state=${s.current_state}`, '');
+  } catch(e) {
+    log(`✗ Could not select ${id}: ${e.message}`, 'err');
+  }
+}
+
+// --- Reports ---
+async function genReport(type) {
+  if (!roleCanAccess('manager')) {
+    log('Reports require a manager account.', 'err');
+    return;
+  }
+  try {
+    const res = await fetchJSON(`reports/generate/${type}/`, { method: 'POST' });
+    log(`✓ ${type} report generated`, 'ok');
+  } catch(e) { log('✗ Report failed: '+e.message, 'err'); }
+}
+
+// --- Sales summaries ---
+// Keep date defaults aligned with the motel's local timezone.
+function localIsoDate(value = new Date()) {
+  return motelIsoDate(value);
+}
+
+function salesDateValue() {
+  const input = document.getElementById('salesDate');
+  if (!input.value) input.value = localIsoDate();
+  return input.value;
+}
+
+function money(value) {
+  return `$${formatMoney(value)}`;
+}
+
+function renderSalesStats(data) {
+  document.getElementById('salesStats').innerHTML = `
+    <div class="stat"><div class="n" style="color:var(--green)">${money(data.sales_total)}</div><div class="l">Sales Total</div></div>
+    <div class="stat"><div class="n" style="color:var(--cyan)">${money(data.payment_total)}</div><div class="l">Payment Total</div></div>
+    <div class="stat"><div class="n" style="color:var(--accent)">${data.rooms_sold || 0}</div><div class="l">Rooms Sold</div></div>`;
+}
+
+function saleTime(value) {
+  if (!value) return '—';
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return '—';
+  return motelFormatShortDateTime(d);
+}
+
+function renderShiftSales(data) {
+  shiftRentalRows = data.sales || [];
+  renderShiftRentalTable();
+}
+
+function roomDisplayValue(roomId) {
+  const room = latestRooms.find(item => item.room_id === roomId);
+  return room?.room_number || roomId || '';
+}
+
+function localDateTimeValue(date=new Date()) {
+  return motelDateTimeInputValue(date);
+}
+
+function openRentalDialog() {
+  const selectedRoom = latestRooms.find(room => room.room_id === selectedRoomId);
+  if (!selectedRoom) {
+    log('Select a room before creating a rental.', 'err');
+    return;
+  }
+  const selectedStatus = roomStatusInfo(selectedRoom);
+  if (!['clear', 'present'].includes(selectedStatus.bucket) || selectedStatus.requiresDepartureConfirmation) {
+    log(`Room ${selectedRoom.room_number || selectedRoom.room_id} is ${selectedStatus.label.toLowerCase()} and cannot accept a rental.`, 'err');
+    return;
+  }
+  dialogVehicleId = null;
+  dialogRentalDurationHours = 8;
+  document.getElementById('rentalDialogRoom').value = roomDisplayValue(selectedRoomId);
+  document.getElementById('rentalDialogEntry').value = localDateTimeValue();
+  document.getElementById('rentalDialogPlateSearch').value = '';
+  ['rentalDialogPlate', 'rentalDialogColor', 'rentalDialogMake', 'rentalDialogModel', 'rentalDialogShape', 'rentalDialogNotes'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+  document.getElementById('rentalDialogVehicleResults').textContent = 'Search by plate, or enter details below to create a vehicle.';
+  renderVehicleShapePicker('rentalDialogShapePicker', 'rentalDialogShape');
+  document.querySelectorAll('[data-dialog-hours]').forEach(btn => {
+    btn.classList.toggle('active', Number(btn.dataset.dialogHours) === dialogRentalDurationHours);
+  });
+  document.getElementById('rentalDialog').classList.add('active');
+}
+
+function closeRentalDialog() {
+  document.getElementById('rentalDialog').classList.remove('active');
+}
+
+function setDialogRentalDuration(hours, el) {
+  dialogRentalDurationHours = hours;
+  document.querySelectorAll('[data-dialog-hours]').forEach(btn => btn.classList.toggle('active', btn === el));
+}
+
+function dialogVehiclePayload() {
+  return {
+    license_plate: document.getElementById('rentalDialogPlate').value.trim().toUpperCase(),
+    color: document.getElementById('rentalDialogColor').value.trim(),
+    make: document.getElementById('rentalDialogMake').value.trim(),
+    model: document.getElementById('rentalDialogModel').value.trim(),
+    vehicle_shape: document.getElementById('rentalDialogShape').value || null,
+    notes: document.getElementById('rentalDialogNotes').value.trim(),
+  };
+}
+
+function fillRentalDialogVehicle(vehicle) {
+  dialogVehicleId = vehicle?.id || null;
+  document.getElementById('rentalDialogPlate').value = vehicle?.license_plate || '';
+  document.getElementById('rentalDialogColor').value = vehicle?.color || '';
+  document.getElementById('rentalDialogMake').value = vehicle?.make || '';
+  document.getElementById('rentalDialogModel').value = vehicle?.model || '';
+  document.getElementById('rentalDialogShape').value = vehicle?.vehicle_shape || '';
+  document.getElementById('rentalDialogNotes').value = vehicle?.notes || '';
+  renderVehicleShapePicker('rentalDialogShapePicker', 'rentalDialogShape');
+}
+
+function renderRentalDialogVehicleResults(vehicles) {
+  const target = document.getElementById('rentalDialogVehicleResults');
+  if (!vehicles.length) {
+    target.innerHTML = 'No matching vehicle. Enter details below to create one with the rental.';
+    return;
+  }
+  target.innerHTML = vehicles.slice(0, 6).map(vehicle => `
+    <div class="dialog-result">
+      <strong style="color:var(--text)">${escapeHtml(vehicleLabel(vehicle))}</strong>
+      ${vehicle.notes ? `<br>${escapeHtml(vehicle.notes)}` : ''}
+      <br><button class="btn btn-primary btn-sm" type="button" onclick="selectRentalDialogVehicle(${vehicle.id})">Use Vehicle</button>
+    </div>`).join('');
+}
+
+async function searchRentalDialogVehicle() {
+  const q = document.getElementById('rentalDialogPlateSearch').value.trim() || document.getElementById('rentalDialogPlate').value.trim();
+  if (!q) {
+    document.getElementById('rentalDialogVehicleResults').textContent = 'Enter a plate to search.';
+    return;
+  }
+  try {
+    const data = await fetchJSON(`vehicles/?search=${encodeURIComponent(q)}`);
+    renderRentalDialogVehicleResults(listResults(data));
+  } catch(e) {
+    document.getElementById('rentalDialogVehicleResults').textContent = `Vehicle search failed: ${friendlyError(e)}`;
+  }
+}
+
+async function selectRentalDialogVehicle(vehicleId) {
+  try {
+    const vehicle = await fetchJSON(`vehicles/${encodeURIComponent(vehicleId)}/`);
+    fillRentalDialogVehicle(vehicle);
+    document.getElementById('rentalDialogVehicleResults').textContent = `Selected ${vehicleLabel(vehicle)}.`;
+  } catch(e) {
+    document.getElementById('rentalDialogVehicleResults').textContent = `Could not select vehicle: ${friendlyError(e)}`;
+  }
+}
+
+function rentalSortValue(row, key) {
+  if (key === 'vehicle') return vehicleLabel(row.vehicle || null).toLowerCase();
+  if (key === 'duration_hours') return rentalElapsedSeconds(row);
+  if (key === 'sale_amount') return Number(row[key] || 0);
+  return String(row[key] ?? '').toLowerCase();
+}
+
+function rentalElapsedSeconds(row, now=Date.now()) {
+  const startedAt = new Date(row?.start_time);
+  if (Number.isNaN(startedAt.getTime())) return 0;
+  const exitedAt = row?.exit_time ? new Date(row.exit_time) : null;
+  const stoppedAt = exitedAt && !Number.isNaN(exitedAt.getTime()) ? exitedAt.getTime() : now;
+  return Math.max(0, Math.floor((stoppedAt - startedAt.getTime()) / 1000));
+}
+
+function rentalElapsedLabel(row, now=Date.now()) {
+  let seconds = rentalElapsedSeconds(row, now);
+  const days = Math.floor(seconds / 86400);
+  seconds %= 86400;
+  const hours = Math.floor(seconds / 3600);
+  seconds %= 3600;
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = seconds % 60;
+  const clock = `${String(minutes).padStart(2, '0')}m ${String(remainingSeconds).padStart(2, '0')}s`;
+  if (days) return `${days}d ${hours}h ${clock}`;
+  if (hours) return `${hours}h ${clock}`;
+  return clock;
+}
+
+function rentalBillingHours(row, now=Date.now()) {
+  const elapsedHours = rentalElapsedSeconds(row, now) / 3600;
+  if (elapsedHours > 16) return 24;
+  if (elapsedHours > 8) return 16;
+  return 8;
+}
+
+function updateShiftRentalClocks() {
+  const now = Date.now();
+  shiftRentalRows.forEach(row => {
+    const sessionId = Number(row.session_id || 0);
+    const elapsed = document.querySelector(`[data-rental-elapsed="${sessionId}"]`);
+    if (elapsed) elapsed.textContent = rentalElapsedLabel(row, now);
+    const duration = document.querySelector(`[data-rental-duration="${sessionId}"]`);
+    if (duration) duration.textContent = `${rentalBillingHours(row, now)}h`;
+  });
+}
+
+function sortShiftRentals(key) {
+  if (shiftRentalSort.key === key) {
+    shiftRentalSort.dir = shiftRentalSort.dir === 'asc' ? 'desc' : 'asc';
+  } else {
+    shiftRentalSort = {key, dir: key === 'start_time' ? 'asc' : 'desc'};
+  }
+  renderShiftRentalTable();
+}
+
+function sortedShiftRentals() {
+  const rows = [...shiftRentalRows];
+  rows.sort((a, b) => {
+    const left = rentalSortValue(a, shiftRentalSort.key);
+    const right = rentalSortValue(b, shiftRentalSort.key);
+    if (left < right) return shiftRentalSort.dir === 'asc' ? -1 : 1;
+    if (left > right) return shiftRentalSort.dir === 'asc' ? 1 : -1;
+    return Number(a.session_id || 0) - Number(b.session_id || 0);
+  });
+  return rows;
+}
+
+function rentalSortLabel(key, label) {
+  const marker = shiftRentalSort.key === key ? (shiftRentalSort.dir === 'asc' ? ' ▲' : ' ▼') : '';
+  return `<button class="sortable-th" type="button" onclick="sortShiftRentals('${key}')">${label}${marker}</button>`;
+}
+
+function renderShiftRentalTable() {
+  const rows = sortedShiftRentals();
+  const body = rows.length ? rows.map((sale, index) => `
+    <tr>
+      <td>${index + 1}</td>
+      <td>${escapeHtml(sale.room_number || sale.room_id)}</td>
+      <td>${saleTime(sale.start_time)}</td>
+      <td>${saleTime(sale.end_time)}</td>
+      <td>${saleTime(sale.exit_time)}</td>
+      <td data-rental-elapsed="${Number(sale.session_id)}">${rentalElapsedLabel(sale)}</td>
+      <td>${escapeHtml(vehicleLabel(sale.vehicle || null))}</td>
+      <td>${escapeHtml((sale.status || '').replaceAll('_', ' '))}</td>
+      <td style="color:var(--green);font-weight:600">${money(sale.sale_amount)}</td>
+      <td><strong data-rental-duration="${Number(sale.session_id)}">${rentalBillingHours(sale)}h</strong></td>
+    </tr>`).join('') : '<tr><td colspan="10" style="text-align:center;color:var(--muted)">No rentals created in the selected period.</td></tr>';
+  document.getElementById('salesContent').innerHTML = `
+    <h3 style="margin-bottom:8px;color:var(--green)">Rentals · ${escapeHtml(document.getElementById('salesShift').selectedOptions[0].textContent)}</h3>
+    <table class="events-table">
+      <thead><tr>
+        <th>${rentalSortLabel('start_time', 'Order')}</th>
+        <th>${rentalSortLabel('room_id', 'Room')}</th>
+        <th>${rentalSortLabel('start_time', 'Start')}</th>
+        <th>${rentalSortLabel('end_time', 'Billed Until')}</th>
+        <th>${rentalSortLabel('exit_time', 'Exit')}</th>
+        <th>${rentalSortLabel('duration_hours', 'Actual Time')}</th>
+        <th>${rentalSortLabel('vehicle', 'Vehicle')}</th>
+        <th>${rentalSortLabel('status', 'Status')}</th>
+        <th>${rentalSortLabel('sale_amount', 'Sale')}</th>
+        <th>Duration</th>
+      </tr></thead>
+      <tbody>${body}</tbody>
+    </table>`;
+}
+
+async function loadShiftRentals() {
+  const dateVal = salesDateValue();
+  const shift = document.getElementById('salesShift').value;
+  try {
+    const rows = await fetchAllPages(`rental-sessions/?date=${dateVal}&shift=${shift}&ordering=start_time`);
+    const total = rows.reduce((sum, row) => sum + Number(row.sale_amount || 0), 0);
+    renderSalesStats({sales_total: total, payment_total: total, rooms_sold: rows.length});
+    renderShiftSales({sales: rows});
+  } catch(e) {
+    document.getElementById('salesContent').innerHTML = `<p style="color:var(--red)">Error: ${escapeHtml(e.message)}</p>`;
+    log('✗ Shift rentals failed: '+e.message, 'err');
+  }
+}
+
+async function createRentalSession() {
+  openRentalDialog();
+}
+
+async function submitRentalDialog() {
+  const room = document.getElementById('rentalDialogRoom').value.trim();
+  const entryTime = document.getElementById('rentalDialogEntry').value;
+  const vehiclePayload = dialogVehiclePayload();
+  let vehicleId = dialogVehicleId;
+  if (!room) {
+    log('Enter a room number before creating a rental.', 'err');
+    return;
+  }
+  try {
+    if (!vehicleId && (vehiclePayload.license_plate || vehiclePayload.color || vehiclePayload.make || vehiclePayload.model)) {
+      const vehicle = await fetchJSON('vehicles/', {method: 'POST', body: vehiclePayload});
+      vehicleId = vehicle.id;
+    }
+    await fetchJSON('rental-sessions/', {
+      method: 'POST',
+      body: {
+        room_number: room,
+        entry_time: entryTime,
+        duration_hours: dialogRentalDurationHours,
+        vehicle_id: vehicleId,
+        status: 'checked_in',
+        source: 'cashier',
+      },
+    });
+    closeRentalDialog();
+    log(`Rental created for room ${room} (${dialogRentalDurationHours}h)`, 'ok');
+    await Promise.all([loadShiftRentals(), loadRooms()]);
+  } catch(e) {
+    log('✗ Create rental failed: '+e.message, 'err');
+  }
+}
+
+function renderDaySales(data) {
+  const shifts = data.shifts || [];
+  const shiftRows = shifts.map(row => `
+    <tr>
+      <td>Shift ${row.shift}</td>
+      <td>${saleTime(row.start)} to ${saleTime(row.end)}</td>
+      <td>${row.rooms_sold || 0}</td>
+      <td style="color:var(--green);font-weight:600">${money(row.sales_total)}</td>
+    </tr>`).join('');
+  const typeRows = (data.room_types || []).length ? data.room_types.map(row => `
+    <tr>
+      <td style="font-weight:600">${escapeHtml(row.room_type || '—')}</td>
+      <td>${row.shift_1_count || 0} / ${money(row.shift_1_total)}</td>
+      <td>${row.shift_2_count || 0} / ${money(row.shift_2_total)}</td>
+      <td>${row.shift_3_count || 0} / ${money(row.shift_3_total)}</td>
+      <td>${row.count || 0}</td>
+      <td style="color:var(--green);font-weight:600">${money(row.sales_total)}</td>
+    </tr>`).join('') : '<tr><td colspan="6" style="text-align:center;color:var(--muted)">No room sales for this day.</td></tr>';
+  document.getElementById('salesContent').innerHTML = `
+    <h3 style="margin-bottom:8px;color:var(--green)">Day Sales</h3>
+    <table class="events-table" style="margin-bottom:16px">
+      <thead><tr><th>Shift</th><th>Window</th><th>Rooms Sold</th><th>Sales</th></tr></thead>
+      <tbody>${shiftRows}</tbody>
+    </table>
+    <h3 style="margin-bottom:8px;color:var(--cyan)">Room Types by Shift</h3>
+    <table class="events-table">
+      <thead><tr><th>Room Type</th><th>Shift 1</th><th>Shift 2</th><th>Shift 3</th><th>Day Rooms</th><th>Day Sales</th></tr></thead>
+      <tbody>${typeRows}</tbody>
+    </table>`;
+}
+
+function renderWeekSales(data) {
+  const rows = (data.days || []).map(day => `
+    <tr>
+      <td>${day.date}</td>
+      <td>${day.rooms_sold || 0}</td>
+      <td style="color:var(--green);font-weight:600">${money(day.sales_total)}</td>
+    </tr>`).join('');
+  document.getElementById('salesContent').innerHTML = `
+    <h3 style="margin-bottom:8px;color:var(--green)">Week Sales</h3>
+    <p class="sales-note">${data.week_start} to ${data.week_end}</p>
+    <table class="events-table">
+      <thead><tr><th>Day</th><th>Rooms Sold</th><th>Sales</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
+
+async function loadSalesSummary() {
+  const dateVal = salesDateValue();
+  const shift = document.getElementById('salesShift').value;
+  if (currentSalesView === 'shift') {
+    await loadShiftRentals();
+    return;
+  }
+  let path = `revenue/sales-summary/?view=${currentSalesView}&date=${dateVal}`;
+  if (currentSalesView === 'shift') path += `&shift=${shift}`;
+  try {
+    const data = await fetchJSON(path);
+    renderSalesStats(data);
+    if (data.view === 'shift') renderShiftSales(data);
+    if (data.view === 'day') renderDaySales(data);
+    if (data.view === 'week') renderWeekSales(data);
+  } catch(e) {
+    document.getElementById('salesContent').innerHTML = `<p style="color:var(--red)">Error: ${escapeHtml(e.message)}</p>`;
+    log('✗ Sales summary failed: '+e.message, 'err');
+  }
+}
+
+// --- Cuadre ---
+const TIER_ORDER = ['1 BGO', '2 Y0 Dndein', '3 BOO', '4 BUYS', '9.S0'];
+const TIER_PRICES = {'1 BGO':40, '2 Y0 Dndein':45, '3 BOO':50, '4 BUYS':70, '9.S0':100};
+
+function loadCuadraDefaults() {
+  const today = localIsoDate();
+  if (!document.getElementById('cuadreDate').value) {
+    document.getElementById('cuadreDate').value = today;
+  }
+}
+
+async function loadCuadre() {
+  const dateVal = document.getElementById('cuadreDate').value;
+  const shift = parseInt(document.getElementById('cuadreShift').value);
+  if (!dateVal) return;
+  if (cuadreBusy) return;
+
+  const generateBtn = document.getElementById('generateCuadreBtn');
+  cuadreBusy = true;
+  if (generateBtn) {
+    generateBtn.disabled = true;
+    generateBtn.textContent = 'Generating...';
+  }
+
+  try {
+    // Use the Cuadre endpoint from revenue app
+    const data = await fetchJSON(`revenue/cuadre/?date=${dateVal}&shift=${shift}`);
+    const l = data.ledger || {};
+
+    document.getElementById('cuadreStats').innerHTML = `
+      <div class="stat"><div class="n" style="color:var(--green)">$${(l.subtotal||0).toFixed(2)}</div><div class="l">Subtotal</div></div>
+      <div class="stat"><div class="n" style="color:var(--cyan)">$${(l.ath_subtotal||0).toFixed(2)}</div><div class="l">ATH SUB-TOTAL</div></div>
+      <div class="stat"><div class="n" style="color:var(--muted)">${l.active_rooms_count||0}</div><div class="l">Active Rooms</div></div>`;
+
+    let tierHtml = '<table class="events-table"><thead><tr><th>Tier</th><th>Cuentas</th><th>Precio</th><th>Total</th></tr></thead><tbody>';
+    for (const code of TIER_ORDER) {
+      const count = l.tier_counts?.[code] || 0;
+      const price = TIER_PRICES[code];
+      const rev = l.tier_revenues?.[code] || 0;
+      tierHtml += `<tr><td style="font-weight:600">${code}</td><td>${count}</td><td>$${price.toFixed(2)}</td><td style="color:var(--green);font-weight:600">$${rev.toFixed(2)}</td></tr>`;
+    }
+    tierHtml += `<tr style="border-top:2px solid var(--accent)"><td colspan="2" style="font-weight:700">Subtotal</td><td></td><td style="color:var(--green);font-weight:700">$${(l.subtotal||0).toFixed(2)}</td></tr>`;
+    tierHtml += `<tr style="border-top:2px solid var(--accent)"><td colspan="2" style="font-weight:700;background:#0a1628">ATH TOTAL</td><td></td><td style="color:var(--cyan);font-weight:700;font-size:.95rem">$${(l.ath_subtotal||0).toFixed(2)}</td></tr>`;
+    tierHtml += '</tbody></table>';
+
+    const cuadroText = data.cuadre_text || '';
+    document.getElementById('cuadreContent').innerHTML = `
+      <div id='cuadreSaveStatus' role='status' aria-live='polite' style='margin-bottom:14px;padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:#0a1628;color:var(--muted);font-size:.8rem'>
+        Saving or updating shift ledger...
+      </div>
+      ${tierHtml}
+      <div style='margin-top:16px'>
+        <h4 style='color:var(--yellow);font-size:.85rem;margin-bottom:6px'>📋 Paper Format Output:</h4>
+        <pre style='background:#0a1628;border:1px solid var(--border);border-radius:10px;padding:14px;font-size:.75rem;line-height:1.6;white-space:pre-wrap;max-height:300px;overflow-y:auto'>${escapeHtml(cuadroText)}</pre>
+      </div>`;
+
+    // Auto-save ledger
+    try {
+      const saveResult = await fetchJSON('revenue/generate-shift/', { method: 'POST', body: { date: dateVal, shift } });
+      const saveLabel = saveResult.saved_state === 'updated' ? 'updated existing' : 'created';
+      const shiftLabel = document.getElementById('cuadreShift')?.selectedOptions?.[0]?.textContent || `shift ${shift}`;
+      const savedSubtotal = Number(saveResult.subtotal || 0);
+      const savedAthSubtotal = Number(saveResult.ath_subtotal || 0);
+      const saveStatus = document.getElementById('cuadreSaveStatus');
+      if (saveStatus) {
+        saveStatus.textContent = `Ledger saved: ${saveLabel} for ${shiftLabel}. Saved subtotal $${savedSubtotal.toFixed(2)}, ATH total $${savedAthSubtotal.toFixed(2)}.`;
+        saveStatus.style.color = 'var(--green)';
+        saveStatus.style.borderColor = 'rgba(74, 222, 128, 0.35)';
+      }
+      log(`✓ Cuadre ledger ${saveLabel} for shift ${shift}`, 'ok');
+    } catch(e) {
+      const saveStatus = document.getElementById('cuadreSaveStatus');
+      if (saveStatus) {
+        saveStatus.textContent = `Ledger save failed: ${e.message}`;
+        saveStatus.style.color = 'var(--red)';
+        saveStatus.style.borderColor = 'rgba(239, 68, 68, 0.35)';
+      }
+    }
+
+  } catch (e) {
+    document.getElementById('cuadreContent').innerHTML = `<p style="color:var(--red)">Error: ${escapeHtml(e.message)}</p>`;
+    log('✗ Cuadre failed: '+e.message, 'err');
+  } finally {
+    cuadreBusy = false;
+    if (generateBtn) {
+      generateBtn.disabled = false;
+      generateBtn.textContent = '📊 Generate Cuadre';
+    }
+  }
+}
+
+async function downloadCuadrePdf() {
+  const dateVal = document.getElementById('cuadreDate').value;
+  const shift = parseInt(document.getElementById('cuadreShift').value);
+  if (!dateVal) {
+    log('Select a date before downloading Cuadre.', 'err');
+    return;
+  }
+  if (!Number.isInteger(shift)) {
+    log('Select a valid shift before downloading Cuadre.', 'err');
+    return;
+  }
+  try {
+    const headers = {};
+    const accessToken = token();
+    if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
+    const res = await fetch(`${API}ledgers/cuadre/${encodeURIComponent(dateVal)}/?shift=${shift}`, {headers});
+    if (!res.ok) {
+      const text = await res.text();
+      if (res.status === 401) clearSession('Session expired. Please sign in again.');
+      throw new Error(formatApiError(res.status, text));
+    }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `cuadre_${dateVal}_shift${shift}.pdf`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    log(`✓ Cuadre PDF downloaded for shift ${shift}`, 'ok');
+  } catch(e) {
+    log('✗ Cuadre download failed: '+e.message, 'err');
+  }
+}
+
+async function showRevenueSummary() {
+  const monthEnd = localIsoDate();
+  const monthStart = `${monthEnd.slice(0, 7)}-01`;
+  try {
+    const data = await fetchJSON(`revenue/summary/?start_date=${monthStart}&end_date=${monthEnd}`);
+    let html = '<h4 style="color:var(--yellow);margin-bottom:8px">Monthly Revenue Summary</h4>';
+    if (data.days && data.days.length > 0) {
+      html += '<table class="events-table"><thead><tr><th>Date</th><th>Shifts</th><th>Subtotal</th><th>ATH TOTAL</th></tr></thead><tbody>';
+      let monthlyTotal = 0;
+      for (const day of data.days) {
+        html += `<tr><td>${day.date}</td><td>${day.shifts?.length||0}</td><td>$${(day.daily_subtotal||0).toFixed(2)}</td><td style="color:var(--green);font-weight:600">$${(day.daily_total||0).toFixed(2)}</td></tr>`;
+        monthlyTotal += day.daily_total || 0;
+      }
+      html += `<tr style="border-top:2px solid var(--accent)"><td colspan="3" style="font-weight:700">Monthly Total</td><td style="color:var(--cyan);font-weight:700;font-size:.95rem">$${monthlyTotal.toFixed(2)}</td></tr>`;
+      html += '</tbody></table>';
+    } else {
+      html += '<p style="color:var(--muted)">No revenue data for this period. Generate a Cuadre first.</p>';
+    }
+    document.getElementById('cuadreContent').innerHTML = html;
+  } catch(e) {
+    document.getElementById('cuadreContent').innerHTML = `<p style="color:var(--red)">Error: ${escapeHtml(e.message)}</p>`;
+  }
+}
+
+// --- Pricing Tiers ---
+async function loadPricing() {
+  try {
+    const tiersData = await fetchJSON('pricing-tiers/');
+    const tiers = listResults(tiersData);
+    document.getElementById('pricingBody').innerHTML = tiers.map(t => `<tr><td style="font-weight:600">${escapeHtml(t.code)}</td><td>${escapeHtml(t.description||'')}</td><td style="color:var(--green);font-weight:600">$${formatMoney(t.price_per_night)}</td><td>${t.active?'✅ Active':'❌ Inactive'}</td></tr>`).join('') || '<tr><td colspan="4" style="text-align:center;color:var(--muted)">No tiers</td></tr>';
+  } catch(e) {
+    log('✗ Load pricing failed: '+e.message, 'err');
+    document.getElementById('pricingBody').innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--red)">Error loading pricing tiers</td></tr>';
+  }
+}
+
+// --- Ledger History ---
+async function loadLedgerHistory() {
+  try {
+    const ledgerData = await fetchJSON('ledgers/');
+    const ledgers = listResults(ledgerData);
+    document.getElementById('ledgerBody').innerHTML = ledgers.length ? ledgers.map(l => `<tr><td>${motelFormatDate(l.date)}</td><td>T${l.shift_number||'—'}</td><td>${l.tier_1_bgo_count||0}</td><td>${l.tier_2_y0_dndein_count||0}</td><td>${l.tier_3_boo_count||0}</td><td>${l.tier_4_buys_count||0}</td><td>${l.tier_5_s0_luxury_count||0}</td><td>$${formatMoney(l.subtotal)}</td><td style="color:var(--green);font-weight:600">$${formatMoney(l.ath_subtotal)}</td></tr>`).join('') : '<tr><td colspan="9" style="text-align:center;color:var(--muted)">No ledgers saved yet.</td></tr>';
+  } catch(e) { log('✗ Load ledger failed: '+e.message, 'err'); document.getElementById('ledgerBody').innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--red)">Error loading ledger history</td></tr>'; }
+}
+
+// --- Utils ---
+function listResults(payload) { return Array.isArray(payload) ? payload : (Array.isArray(payload?.results) ? payload.results : []); }
+async function fetchAllPages(path) {
+  let nextPath = path;
+  const results = [];
+  while (nextPath) {
+    const payload = await fetchJSON(nextPath);
+    results.push(...listResults(payload));
+    if (Array.isArray(payload) || !payload?.next) break;
+    const nextUrl = new URL(payload.next, window.location.origin);
+    nextPath = `${nextUrl.pathname.replace(/^\/api\//, '')}${nextUrl.search}`;
+  }
+  return results;
+}
+function formatMoney(value) { const amount = Number(value || 0); return Number.isFinite(amount) ? amount.toFixed(2) : '0.00'; }
+function escapeHtml(s) { return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+// --- Init ---
+async function loadVehicleShapes() {
+  vehicleShapes = await fetchAllPages('vehicle-shapes/');
+  const options = vehicleShapes.map(shape => `<option value="${Number(shape.id)}">${escapeHtml(shape.name)}</option>`).join('');
+  ['vehicleShape', 'rentalDialogShape'].forEach(id => {
+    const select = document.getElementById(id);
+    if (!select) return;
+    const selected = select.value;
+    select.innerHTML = `<option value="">${id === 'vehicleShape' ? 'Vehicle shape' : 'Not specified'}</option>${options}`;
+    select.value = selected;
+  });
+  renderVehicleShapePicker('vehicleShapePicker', 'vehicleShape');
+  renderVehicleShapePicker('rentalDialogShapePicker', 'rentalDialogShape');
+}
+
+function renderVehicleShapePicker(pickerId, selectId) {
+  const picker = document.getElementById(pickerId);
+  const select = document.getElementById(selectId);
+  if (!picker || !select) return;
+  const selected = String(select.value || '');
+  picker.innerHTML = vehicleShapes.map(shape => {
+    const icon = shape.icon
+      ? `<img src="${escapeHtml(shape.icon)}" alt="">`
+      : '<span class="vehicle-shape-glyph" aria-hidden="true">🚘</span>';
+    return `<button class="vehicle-shape-choice ${selected === String(shape.id) ? 'selected' : ''}" type="button" onclick="selectVehicleShape('${selectId}','${pickerId}',${Number(shape.id)})" aria-pressed="${selected === String(shape.id)}">
+      <span class="vehicle-shape-icon">${icon}</span><span class="vehicle-shape-name">${escapeHtml(shape.name)}</span>
+    </button>`;
+  }).join('');
+}
+
+function selectVehicleShape(selectId, pickerId, shapeId) {
+  document.getElementById(selectId).value = String(shapeId);
+  renderVehicleShapePicker(pickerId, selectId);
+}
+if (currentUser && !LOGIN_ONLY) {
+  loadVehicleShapes().catch(error => log('Vehicle shapes unavailable: ' + error.message, 'err'));
+}
+if (document.getElementById('puertoRicoClock')) {
+  updatePuertoRicoClock();
+  window.setInterval(updatePuertoRicoClock, 1000);
+}
+window.setInterval(updateShiftRentalClocks, 1000);
+document.addEventListener('motel:dashboard-update', event => {
+  if (event.detail?.model === 'vehicleshape') loadVehicleShapes().catch(() => {});
+  if (currentUser && !LOGIN_ONLY) loadRooms();
+});
+bootstrapSession();
+</script>
+{% endblock %}

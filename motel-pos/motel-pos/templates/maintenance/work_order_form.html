@@ -1,0 +1,23 @@
+{% extends "maintenance/base.html" %}
+
+{% block maintenance_content %}
+  <section class="maintenance-card">
+    <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap;margin-bottom:12px">
+      <div>
+        <div class="maintenance-label">Ad Hoc WO</div>
+        <h2>Shared intake dialog</h2>
+        <p style="color:var(--maintenance-muted)">
+          The Ad Hoc WO page and the quick-action button now open the same modal and save to the same work_orders table.
+        </p>
+      </div>
+      <div class="button-row">
+        <button class="maintenance-btn primary" type="button" onclick="openNewWorkOrderDialog()">Add Work Order</button>
+        <button class="maintenance-btn secondary" type="button" onclick="openNewWorkOrderDialog()">Open Same Dialog</button>
+        <a class="maintenance-btn ghost" href="{% url "maintenance:maintenance-dashboard" %}">Back to dashboard</a>
+      </div>
+    </div>
+    <div class="maintenance-callout">
+      Use the shared modal if you want the same fields, the same save script, and the same database table as the quick action.
+    </div>
+  </section>
+{% endblock %}

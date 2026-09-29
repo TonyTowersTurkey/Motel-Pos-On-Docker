@@ -1,0 +1,69 @@
+{% extends "maintenance/base.html" %}
+
+{% block maintenance_content %}
+  <section class="maintenance-stats">
+    {% for metric in metrics %}
+      <div class="maintenance-stat">
+        <div class="value tone-{{ metric.tone }}">{{ metric.value }}</div>
+        <div class="label">{{ metric.label }}</div>
+      </div>
+    {% endfor %}
+  </section>
+
+  <section class="maintenance-card" style="margin-bottom:18px">
+    <div class="maintenance-label">Filters</div>
+    <div class="maintenance-chip-row">
+      {% for filter in filters %}
+        <button class="maintenance-chip" type="button">{{ filter }}</button>
+      {% endfor %}
+    </div>
+    <div class="button-row" style="margin-top:14px">
+      <button class="maintenance-btn primary" type="button">Refresh Queue</button>
+      <button class="maintenance-btn secondary" type="button">Bulk Assign</button>
+      <button class="maintenance-btn ghost" type="button">Export CSV</button>
+      <button class="maintenance-btn warn" type="button">Mark Selected Waiting</button>
+      <button class="maintenance-btn good" type="button">Mark Selected Done</button>
+    </div>
+  </section>
+
+  <section class="maintenance-card">
+    <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap;margin-bottom:10px">
+      <div>
+        <div class="maintenance-label">Outstanding Work Orders</div>
+        <h2>Management dashboard</h2>
+      </div>
+      <div class="button-row">
+        <a class="maintenance-btn primary" href="{% url 'maintenance:maintenance-work-order-new' %}">Create Work Order</a>
+        <a class="maintenance-btn secondary" href="{% url 'maintenance:maintenance-work-to-do' %}">Work To Be Done</a>
+      </div>
+    </div>
+    <table class="maintenance-table">
+      <thead>
+        <tr>
+          <th>Room</th><th>Title</th><th>Category</th><th>Priority</th><th>Status</th><th>Assigned To</th><th>Due</th><th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for work_order in work_orders %}
+        <tr>
+          <td>{{ work_order.room }}</td>
+          <td>{{ work_order.title }}</td>
+          <td>{{ work_order.category }}</td>
+          <td>{{ work_order.priority }}</td>
+          <td>{{ work_order.status }}</td>
+          <td>{{ work_order.assigned_to }}</td>
+          <td>{{ work_order.due_date }}</td>
+          <td>
+            <div class="button-row">
+              <button class="maintenance-btn good" type="button" onclick="openWorkOrderDialog('{{ work_order.id }}')">Start</button>
+              <button class="maintenance-btn warn" type="button" onclick="openWorkOrderDialog('{{ work_order.id }}')">Waiting</button>
+              <button class="maintenance-btn primary" type="button" onclick="openWorkOrderDialog('{{ work_order.id }}')">Complete</button>
+              <button class="maintenance-btn ghost" type="button" onclick="openWorkOrderDialog('{{ work_order.id }}')">Notes</button>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+{% endblock %}

@@ -1,0 +1,34 @@
+{% extends "maintenance/base.html" %}
+
+{% block maintenance_content %}
+  {% for queue in queues %}
+  <section class="maintenance-card" style="margin-bottom:16px">
+    <div style="display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:10px">
+      <div>
+        <div class="maintenance-label">{{ queue.title }}</div>
+        <h2>{{ queue.title }}</h2>
+      </div>
+      <button class="maintenance-btn ghost" type="button">View all</button>
+    </div>
+    <div class="maintenance-kv">
+      {% for item in queue.items %}
+        <div class="maintenance-callout">
+          <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap">
+            <div>
+              <strong>Room {{ item.room }}</strong>
+              <div>{{ item.task }}</div>
+              <div style="color:var(--maintenance-muted);font-size:0.88rem">Assigned: {{ item.assigned }} · Due: {{ item.due }}</div>
+            </div>
+            <div class="button-row">
+              <button class="maintenance-btn good" type="button" onclick="openWorkOrderDialog('wo-105')">Start work</button>
+              <button class="maintenance-btn warn" type="button" onclick="openWorkOrderDialog('wo-318')">Waiting for parts</button>
+              <button class="maintenance-btn primary" type="button" onclick="openWorkOrderDialog('wo-411')">Complete work</button>
+              <button class="maintenance-btn ghost" type="button" onclick="openWorkOrderDialog('wo-105')">Add notes</button>
+            </div>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  </section>
+  {% endfor %}
+{% endblock %}
