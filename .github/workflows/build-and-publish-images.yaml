@@ -14,8 +14,8 @@ jobs:
       id-token: write
 
     env:
-      MOTEL_POS_IMAGE: ghcr.io/${{ toLower(github.repository_owner) }}/motel-pos:latest
-      ROOM_PULSE_IMAGE: ghcr.io/${{ toLower(github.repository_owner) }}/room-pulse:latest
+      MOTEL_POS_IMAGE: motel-pos:ci
+      ROOM_PULSE_IMAGE: room-pulse:ci
 
     steps:
       - name: Checkout
@@ -26,14 +26,6 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
-
-      - name: Login to GHCR
-        if: ${{ secrets.GHCR_TOKEN != '' }}
-        uses: docker/login-action@v2
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GHCR_TOKEN }}
 
       - name: Build motel-pos image
         working-directory: ./motel-pos
@@ -55,8 +47,5 @@ jobs:
             motel-pos/motel-pos.tar
             Garage_Door_Detection/room-pulse.tar
 
-      - name: Push images to GHCR
-        if: ${{ secrets.GHCR_TOKEN != '' }}
-        run: |
-          docker push "$MOTEL_POS_IMAGE"
-          docker push "$ROOM_PULSE_IMAGE"
+      - name: Skip GHCR push
+        run: echo "GHCR push skipped in this workflow. Use separate publish workflow to push images."
