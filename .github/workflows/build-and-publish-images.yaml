@@ -28,13 +28,13 @@ jobs:
         uses: docker/setup-buildx-action@v2
 
       - name: Build motel-pos image
-        working-directory: ./motel-pos
+        working-directory: ./motel-pos/motel-pos
         run: |
           docker build --pull --tag "$MOTEL_POS_IMAGE" .
           docker save "$MOTEL_POS_IMAGE" -o motel-pos.tar
 
       - name: Build room-pulse image
-        working-directory: ./Garage_Door_Detection
+        working-directory: ./Garage_Door_Detection/Garage_Door_Detection
         run: |
           docker build --pull --tag "$ROOM_PULSE_IMAGE" .
           docker save "$ROOM_PULSE_IMAGE" -o room-pulse.tar
@@ -45,7 +45,7 @@ jobs:
           name: built-images
           path: |
             motel-pos/motel-pos.tar
-            Garage_Door_Detection/room-pulse.tar
+            Garage_Door_Detection/Garage_Door_Detection/room-pulse.tar
 
       - name: Skip GHCR push
         run: echo "GHCR push skipped in this workflow. Use separate publish workflow to push images."
