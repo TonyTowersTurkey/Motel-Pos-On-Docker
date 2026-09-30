@@ -10,6 +10,8 @@ class Settings(BaseSettings):
     app_name: str = "Garage Door Detection"
     app_env: str = "local"
     database_url: str = "sqlite:///./local.db"
+    database_connect_max_attempts: int = 10
+    database_connect_retry_seconds: float = 2.0
     sqlite_busy_timeout_ms: int = 30_000
     media_root: Path = Path("media")
     uncertain_sample_dir: Path = Path("media/uncertain_samples")

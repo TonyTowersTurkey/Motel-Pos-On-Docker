@@ -137,12 +137,14 @@ batch through `POST /api/training/crops/generate`.
 
 ## Automatic Door Classification
 
-Place the trained Ultralytics classification model at `yologaragedetect.pt`, or configure another
-path in `.env`. The model must have exactly two classes named `open` and `closed`:
+The Docker image packages every model in `classificationModels/`. Select which packaged model to
+use at runtime with `CLASSIFICATION_MODEL_PATH` in `.env`; changing the selection does not require
+rebuilding the image. Classification models must have exactly two classes named `open` and
+`closed`:
 
 ```dotenv
 CLASSIFICATION_ENABLED=true
-CLASSIFICATION_MODEL_PATH=yologaragedetect.pt
+CLASSIFICATION_MODEL_PATH=classificationModels/garageclassify_v0.4_y11n_224.pt
 CLASSIFICATION_CONFIDENCE_THRESHOLD=0.75
 CLASSIFICATION_CONFIRMATION_COUNT=3
 CLASSIFICATION_POLL_SECONDS=2

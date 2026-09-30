@@ -10,6 +10,7 @@ x-app: &app
   environment:
     ENVIRONMENT: production
     DEBUG: "false"
+    DB_ENGINE: django.db.backends.postgresql
     DB_HOST: postgres
     DB_PORT: "5432"
     DB_NAME: ${POSTGRES_DB:-motel_occupancy}

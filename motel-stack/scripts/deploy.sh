@@ -14,8 +14,8 @@ compose=(docker compose --project-directory "$ROOT_DIR" --env-file "$ENV_FILE")
 echo "Validating compose files..."
 "${compose[@]}" -f "$ROOT_DIR/docker-compose.prod.yaml" config --quiet
 
-echo "Building images (if MOTEL_POS_IMAGE or ROOM_PULSE_IMAGE are not set, local builds may be used)..."
-"${compose[@]}" -f "$ROOT_DIR/docker-compose.prod.yaml" build --pull --parallel || true
+echo "Pulling application images..."
+"${compose[@]}" -f "$ROOT_DIR/docker-compose.prod.yaml" pull motel-pos room-pulse room-pulse-snapshot
 
 echo "Starting postgres and redis..."
 "${compose[@]}" -f "$ROOT_DIR/docker-compose.prod.yaml" up -d postgres redis

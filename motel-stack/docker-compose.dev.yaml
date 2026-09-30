@@ -1,4 +1,3 @@
-version: '3.9'
 services:
   postgres:
     image: ${POSTGRES_IMAGE:-postgres:16-bookworm}
@@ -6,6 +5,11 @@ services:
       - "motel_stack.component=postgres"
     environment:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      MOTEL_POSTGRES_DB: ${MOTEL_POSTGRES_DB}
+      MOTEL_POSTGRES_USER: ${MOTEL_POSTGRES_USER}
+      ROOM_POSTGRES_DB: ${ROOM_POSTGRES_DB}
+      ROOM_POSTGRES_USER: ${ROOM_POSTGRES_USER}
+      ROOM_POSTGRES_PASSWORD: ${ROOM_POSTGRES_PASSWORD}
     volumes:
       - postgres-data:/var/lib/postgresql/data
       - ./init:/scripts:ro
@@ -14,6 +18,26 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
+
+  postgres-init:
+    image: ${POSTGRES_IMAGE:-postgres:16-bookworm}
+    environment:
+      PGHOST: postgres
+      PGUSER: postgres
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      MOTEL_POSTGRES_DB: ${MOTEL_POSTGRES_DB}
+      MOTEL_POSTGRES_USER: ${MOTEL_POSTGRES_USER}
+      ROOM_POSTGRES_DB: ${ROOM_POSTGRES_DB}
+      ROOM_POSTGRES_USER: ${ROOM_POSTGRES_USER}
+      ROOM_POSTGRES_PASSWORD: ${ROOM_POSTGRES_PASSWORD}
+    volumes:
+      - ./init:/scripts:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: ["bash", "/scripts/create_room_db_and_user.sh"]
+    restart: "no"
 
   redis:
     image: ${REDIS_IMAGE:-redis:7-alpine}
@@ -27,56 +51,72 @@ services:
 
   motel-pos:
     build:
-      context: ./../motel-pos
+      context: ./../motel-pos/motel-pos
     env_file:
-      - ./../motel-pos/.env.example
+      - ./../motel-pos/motel-pos/.env
     environment:
+      DB_ENGINE: django.db.backends.postgresql
       DB_HOST: postgres
       DB_PORT: 5432
       DB_NAME: ${MOTEL_POSTGRES_DB}
       DB_USER: ${MOTEL_POSTGRES_USER}
       DB_PASSWORD: ${POSTGRES_PASSWORD}
       REDIS_HOST: redis
+    ports:
+      - "8001:8000"
     volumes:
-      - ../motel-pos:/app:delegated
+      - ../motel-pos/motel-pos/apps:/app/apps:delegated
+      - ../motel-pos/motel-pos/config:/app/config:delegated
+      - ../motel-pos/motel-pos/templates:/app/templates:delegated
+      - ../motel-pos/motel-pos/manage.py:/app/manage.py:delegated
       - static-data:/app/staticfiles
       - media-data:/app/media
     depends_on:
-      - postgres
-      - redis
+      postgres-init:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
 
   room-pulse:
     build:
-      context: ./../Garage_Door_Detection
+      context: ./../Garage_Door_Detection/Garage_Door_Detection
     env_file:
-      - ./../Garage_Door_Detection/.env.example
+      - ./../Garage_Door_Detection/Garage_Door_Detection/.env
     environment:
-      DATABASE_URL: postgresql+psycopg2://roompulse:${ROOM_POSTGRES_PASSWORD}@postgres:5432/${ROOM_POSTGRES_DB}
+      DATABASE_URL: postgresql+psycopg://${ROOM_POSTGRES_USER}:${ROOM_POSTGRES_PASSWORD}@postgres:5432/${ROOM_POSTGRES_DB}
       REDIS_HOST: redis
+    ports:
+      - "8002:8000"
     volumes:
-      - ../Garage_Door_Detection:/app:delegated
+      - ../Garage_Door_Detection/Garage_Door_Detection/app:/app/app:delegated
+      - ../Garage_Door_Detection/Garage_Door_Detection/pyproject.toml:/app/pyproject.toml:ro
+      - ../Garage_Door_Detection/Garage_Door_Detection/uv.lock:/app/uv.lock:ro
       - gd-media:/app/media
-      - gd-models:/app/classificationModels
     depends_on:
-      - postgres
-      - redis
+      postgres-init:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
     command: ["web"]
 
   room-pulse-snapshot:
     build:
-      context: ./../Garage_Door_Detection
+      context: ./../Garage_Door_Detection/Garage_Door_Detection
     env_file:
-      - ./../Garage_Door_Detection/.env.example
+      - ./../Garage_Door_Detection/Garage_Door_Detection/.env
     environment:
-      DATABASE_URL: postgresql+psycopg2://roompulse:${ROOM_POSTGRES_PASSWORD}@postgres:5432/${ROOM_POSTGRES_DB}
+      DATABASE_URL: postgresql+psycopg://${ROOM_POSTGRES_USER}:${ROOM_POSTGRES_PASSWORD}@postgres:5432/${ROOM_POSTGRES_DB}
       REDIS_HOST: redis
     volumes:
-      - ../Garage_Door_Detection:/app:delegated
+      - ../Garage_Door_Detection/Garage_Door_Detection/app:/app/app:delegated
+      - ../Garage_Door_Detection/Garage_Door_Detection/pyproject.toml:/app/pyproject.toml:ro
+      - ../Garage_Door_Detection/Garage_Door_Detection/uv.lock:/app/uv.lock:ro
       - gd-media:/app/media
-      - gd-models:/app/classificationModels
     depends_on:
-      - postgres
-      - redis
+      postgres-init:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
     command: ["snapshot"]
     restart: unless-stopped
 
@@ -100,6 +140,5 @@ volumes:
   static-data:
   media-data:
   gd-media:
-  gd-models:
   caddy-data:
   caddy-config:

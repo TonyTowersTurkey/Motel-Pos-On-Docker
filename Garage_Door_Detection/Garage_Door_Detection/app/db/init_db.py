@@ -1,11 +1,18 @@
-from sqlalchemy import inspect, text
+import logging
+import time
 
+from sqlalchemy import inspect, text
+from sqlalchemy.exc import OperationalError
+
+from app.core.config import settings
 from app.db.session import engine
 from app.models import Base
 
+logger = logging.getLogger(__name__)
+
 
 def init_db() -> None:
-    Base.metadata.create_all(bind=engine)
+    _create_tables_with_retry()
     _add_automatic_snapshots_column()
     _add_room_detection_columns()
     _add_inference_backfill_column()
@@ -13,6 +20,25 @@ def init_db() -> None:
     _add_vehicle_label_columns()
     _ensure_inference_indexes()
     _remove_legacy_camera_columns()
+
+
+def _create_tables_with_retry() -> None:
+    attempts = max(1, settings.database_connect_max_attempts)
+    for attempt in range(1, attempts + 1):
+        try:
+            Base.metadata.create_all(bind=engine)
+            return
+        except OperationalError:
+            if attempt == attempts:
+                raise
+            logger.warning(
+                "Database unavailable during initialization; retrying in %.1f seconds "
+                "(%d/%d)",
+                settings.database_connect_retry_seconds,
+                attempt,
+                attempts,
+            )
+            time.sleep(max(0, settings.database_connect_retry_seconds))
 
 
 def _add_automatic_snapshots_column() -> None:

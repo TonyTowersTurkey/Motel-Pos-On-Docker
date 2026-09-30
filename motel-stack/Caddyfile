@@ -1,19 +1,9 @@
-{$SITE_ADDRESS}
-
-handle_path / {
-  root * /srv
-  file_server
+{$MOTEL_HOSTNAME} {
+  tls internal
+  reverse_proxy motel-pos:8000
 }
 
-tls internal
-
-reverse_proxy /* {
-  @motel host_regexp("{host:motel-pos.*}")
-  @room host_regexp("{host:.*garage.*}")
-  handle @motel {
-    reverse_proxy motel-pos:80
-  }
-  handle @room {
-    reverse_proxy room-pulse:80
-  }
+{$ROOMPULSE_HOSTNAME} {
+  tls internal
+  reverse_proxy room-pulse:8000
 }

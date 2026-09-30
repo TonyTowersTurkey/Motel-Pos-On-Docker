@@ -1,4 +1,3 @@
-version: '3.9'
 services:
   postgres:
     image: ${POSTGRES_IMAGE:-postgres:16-bookworm}
@@ -7,6 +6,11 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      MOTEL_POSTGRES_DB: ${MOTEL_POSTGRES_DB}
+      MOTEL_POSTGRES_USER: ${MOTEL_POSTGRES_USER}
+      ROOM_POSTGRES_DB: ${ROOM_POSTGRES_DB}
+      ROOM_POSTGRES_USER: ${ROOM_POSTGRES_USER}
+      ROOM_POSTGRES_PASSWORD: ${ROOM_POSTGRES_PASSWORD}
     volumes:
       - postgres-data:/var/lib/postgresql/data
       - ./init:/scripts:ro
@@ -28,12 +32,13 @@ services:
       test: ["CMD","redis-cli","ping"]
 
   motel-pos:
-    image: ${MOTEL_POS_IMAGE:-motel-pos:latest}
+    image: ${MOTEL_POS_IMAGE:-ghcr.io/tonytowersturkey/motel-pos:latest}
     labels:
       - "motel_stack.component=motel-pos"
     env_file:
-      - ./../motel-pos/.env.production
+      - ./../motel-pos/motel-pos/.env.production
     environment:
+      DB_ENGINE: django.db.backends.postgresql
       DB_HOST: postgres
       DB_PORT: 5432
       DB_NAME: ${MOTEL_POSTGRES_DB}
@@ -50,17 +55,16 @@ services:
       test: ["CMD","curl","--fail","--silent","--show-error","http://127.0.0.1:8000/api/health/"]
 
   room-pulse:
-    image: ${ROOM_PULSE_IMAGE:-room-pulse:latest}
+    image: ${ROOM_PULSE_IMAGE:-ghcr.io/tonytowersturkey/room-pulse:latest}
     labels:
       - "motel_stack.component=room-pulse"
     env_file:
-      - ./../Garage_Door_Detection/.env.example
+      - ./../Garage_Door_Detection/Garage_Door_Detection/.env
     environment:
-      DATABASE_URL: postgresql+psycopg2://roompulse:${ROOM_POSTGRES_PASSWORD}@postgres:5432/${ROOM_POSTGRES_DB}
+      DATABASE_URL: postgresql+psycopg://${ROOM_POSTGRES_USER}:${ROOM_POSTGRES_PASSWORD}@postgres:5432/${ROOM_POSTGRES_DB}
       REDIS_HOST: redis
     volumes:
       - gd-media:/app/media:ro
-      - gd-models:/app/classificationModels:ro
     depends_on:
       - postgres
       - redis
@@ -69,15 +73,14 @@ services:
     command: ["web"]
 
   room-pulse-snapshot:
-    image: ${ROOM_PULSE_IMAGE:-room-pulse:latest}
+    image: ${ROOM_PULSE_IMAGE:-ghcr.io/tonytowersturkey/room-pulse:latest}
     env_file:
-      - ./../Garage_Door_Detection/.env.example
+      - ./../Garage_Door_Detection/Garage_Door_Detection/.env
     environment:
-      DATABASE_URL: postgresql+psycopg2://roompulse:${ROOM_POSTGRES_PASSWORD}@postgres:5432/${ROOM_POSTGRES_DB}
+      DATABASE_URL: postgresql+psycopg://${ROOM_POSTGRES_USER}:${ROOM_POSTGRES_PASSWORD}@postgres:5432/${ROOM_POSTGRES_DB}
       REDIS_HOST: redis
     volumes:
       - gd-media:/app/media:ro
-      - gd-models:/app/classificationModels:ro
     depends_on:
       - postgres
       - redis
@@ -91,6 +94,8 @@ services:
     restart: unless-stopped
     environment:
       SITE_ADDRESS: ${SITE_ADDRESS}
+      MOTEL_HOSTNAME: ${MOTEL_HOSTNAME}
+      ROOMPULSE_HOSTNAME: ${ROOMPULSE_HOSTNAME}
     ports:
       - "80:80"
       - "443:443"
@@ -110,6 +115,5 @@ volumes:
   static-data:
   media-data:
   gd-media:
-  gd-models:
   caddy-data:
   caddy-config:

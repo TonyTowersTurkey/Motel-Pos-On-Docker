@@ -3,49 +3,58 @@ name: Build and publish images
 on:
   workflow_dispatch:
   push:
-    branches: [ main ]
+    branches: [main]
+    tags: ["v*"]
+
+permissions:
+  contents: read
+  packages: write
 
 jobs:
-  build:
+  publish:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-      id-token: write
-
-    env:
-      MOTEL_POS_IMAGE: motel-pos:ci
-      ROOM_PULSE_IMAGE: room-pulse:ci
+    strategy:
+      matrix:
+        include:
+          - image: motel-pos
+            context: ./motel-pos/motel-pos
+          - image: room-pulse
+            context: ./Garage_Door_Detection/Garage_Door_Detection
 
     steps:
-      - name: Checkout
+      - name: Check out monorepo
         uses: actions/checkout@v4
 
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v2
+        uses: docker/setup-qemu-action@v3
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@v3
 
-      - name: Build motel-pos image
-        working-directory: ./motel-pos/motel-pos
-        run: |
-          docker build --pull --tag "$MOTEL_POS_IMAGE" .
-          docker save "$MOTEL_POS_IMAGE" -o motel-pos.tar
-
-      - name: Build room-pulse image
-        working-directory: ./Garage_Door_Detection/Garage_Door_Detection
-        run: |
-          docker build --pull --tag "$ROOM_PULSE_IMAGE" .
-          docker save "$ROOM_PULSE_IMAGE" -o room-pulse.tar
-
-      - name: Upload built images
-        uses: actions/upload-artifact@v4
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
         with:
-          name: built-images
-          path: |
-            motel-pos/motel-pos.tar
-            Garage_Door_Detection/Garage_Door_Detection/room-pulse.tar
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Skip GHCR push
-        run: echo "GHCR push skipped in this workflow. Use separate publish workflow to push images."
+      - name: Generate image metadata
+        id: metadata
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/tonytowersturkey/${{ matrix.image }}
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=ref,event=tag
+            type=sha,prefix=sha-
+
+      - name: Build and publish ${{ matrix.image }}
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          push: true
+          platforms: linux/amd64,linux/arm64
+          tags: ${{ steps.metadata.outputs.tags }}
+          labels: ${{ steps.metadata.outputs.labels }}
+          cache-from: type=gha,scope=${{ matrix.image }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.image }}

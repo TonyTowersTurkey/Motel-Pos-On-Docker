@@ -1,0 +1,29 @@
+# Ignore version control and editor files
+.git
+.gitignore
+.DS_Store
+.vscode
+
+# Python artifacts
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Local database and caches
+local.db
+local.db-*
+
+# Large media and generated artifacts - not needed in build context
+media/
+training_crops/
+dataset_exports/
+model_cache/
+
+# Tests and CI
+tests/
+.github/
+
+# Environment files
+.env
+.env.*

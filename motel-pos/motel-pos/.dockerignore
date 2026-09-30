@@ -1,3 +1,28 @@
+# Ignore VCS and editor files
+.git
+.gitignore
+.DS_Store
+.vscode
+
+# Python artifacts
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Local DB, media, and large artifacts
+local.db
+media/
+staticfiles/
+model_cache/
+
+# Tests and CI
+tests/
+.github/
+
+# Environment files
+.env
+.env.*
 .git
 .gitignore
 .env

@@ -3,7 +3,7 @@ set -eu
 
 case "${1:-web}" in
     web)
-        exec uvicorn config.asgi:application \
+        exec "/app/.venv/bin/python" -m uvicorn config.asgi:application \
             --host 0.0.0.0 \
             --port "${PORT:-8000}" \
             --workers "${WEB_CONCURRENCY:-4}" \
@@ -12,11 +12,11 @@ case "${1:-web}" in
             --timeout-graceful-shutdown "${GRACEFUL_SHUTDOWN_TIMEOUT:-30}"
         ;;
     init)
-        python manage.py migrate --noinput
-        python manage.py collectstatic --noinput --clear
+        "/app/.venv/bin/python" manage.py migrate --noinput
+        "/app/.venv/bin/python" manage.py collectstatic --noinput --clear
         ;;
     check)
-        exec python manage.py check --deploy
+        exec "/app/.venv/bin/python" manage.py check --deploy
         ;;
     *)
         exec "$@"
