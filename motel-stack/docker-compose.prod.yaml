@@ -91,7 +91,8 @@ services:
       - postgres
       - redis
     command: ["snapshot"]
-    restart: unless-stopped
+    # This command captures once and exits. Invoke it explicitly when needed.
+    restart: "no"
 
   caddy:
     image: ${CADDY_IMAGE:-caddy:2-alpine}

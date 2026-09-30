@@ -47,12 +47,20 @@ cd motel-stack
 ./scripts/smoke_test_webhook.sh
 ```
 
-The production services are also available directly on the host LAN at:
+The production services are available on the host LAN at:
 
-- Motel POS: `http://SERVER_HOSTNAME:8001`
+- Motel POS through Caddy: `https://SERVER_HOSTNAME`
 - Room Pulse: `http://SERVER_HOSTNAME:8002`
 
-These ports avoid a conflict with WebODM when it is already using port 8000.
+Room Pulse's dedicated port avoids a conflict with WebODM when it is already using port 8000.
+The Caddy certificate is issued by Caddy's internal CA, so client devices must trust that CA to
+avoid a browser certificate warning.
+
+Run a single Protect synchronization and snapshot pass with:
+
+```bash
+docker compose --env-file .env -f docker-compose.prod.yaml run --rm --no-deps room-pulse snapshot
+```
 
 Set `MOTEL_POS_IMAGE` and `ROOM_PULSE_IMAGE` in `motel-stack/.env` to immutable release tags such
 as `:v1.0.0` for repeatable production deployments. Leave them empty to use `:latest`.
