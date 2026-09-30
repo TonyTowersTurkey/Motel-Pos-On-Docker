@@ -45,6 +45,8 @@ services:
       DB_USER: ${MOTEL_POSTGRES_USER}
       DB_PASSWORD: ${POSTGRES_PASSWORD}
       REDIS_HOST: redis
+      REDIS_REQUIRED: "true"
+      SSE_REDIS_URL: redis://redis:6379/2
     ports:
       - "8001:8000"
     volumes:
