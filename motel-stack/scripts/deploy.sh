@@ -21,7 +21,7 @@ echo "Starting postgres and redis..."
 "${compose[@]}" -f "$ROOT_DIR/docker-compose.prod.yaml" up -d postgres redis
 
 echo "Ensuring databases and users exist..."
-"${compose[@]}" -f "$ROOT_DIR/docker-compose.prod.yaml" exec -T postgres sh -c "/scripts/create_room_db_and_user.sh"
+"${compose[@]}" -f "$ROOT_DIR/docker-compose.prod.yaml" exec -T postgres bash /scripts/create_room_db_and_user.sh
 
 echo "Running Motel POS init and checks..."
 "${compose[@]}" -f "$ROOT_DIR/docker-compose.prod.yaml" run --rm motel-pos init
