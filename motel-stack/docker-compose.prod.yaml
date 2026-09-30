@@ -50,7 +50,7 @@ services:
     ports:
       - "8001:8000"
     volumes:
-      - static-data:/app/staticfiles:ro
+      - static-data:/app/staticfiles
       - media-data:/app/media
     depends_on:
       - postgres
