@@ -45,6 +45,8 @@ services:
       DB_USER: ${MOTEL_POSTGRES_USER}
       DB_PASSWORD: ${POSTGRES_PASSWORD}
       REDIS_HOST: redis
+    ports:
+      - "8001:8000"
     volumes:
       - static-data:/app/staticfiles:ro
       - media-data:/app/media
@@ -63,8 +65,10 @@ services:
     environment:
       DATABASE_URL: postgresql+psycopg://${ROOM_POSTGRES_USER}:${ROOM_POSTGRES_PASSWORD}@postgres:5432/${ROOM_POSTGRES_DB}
       REDIS_HOST: redis
+    ports:
+      - "8002:8000"
     volumes:
-      - gd-media:/app/media:ro
+      - gd-media:/app/media
     depends_on:
       - postgres
       - redis
@@ -80,7 +84,7 @@ services:
       DATABASE_URL: postgresql+psycopg://${ROOM_POSTGRES_USER}:${ROOM_POSTGRES_PASSWORD}@postgres:5432/${ROOM_POSTGRES_DB}
       REDIS_HOST: redis
     volumes:
-      - gd-media:/app/media:ro
+      - gd-media:/app/media
     depends_on:
       - postgres
       - redis

@@ -47,6 +47,13 @@ cd motel-stack
 ./scripts/smoke_test_webhook.sh
 ```
 
+The production services are also available directly on the host LAN at:
+
+- Motel POS: `http://SERVER_HOSTNAME:8001`
+- Room Pulse: `http://SERVER_HOSTNAME:8002`
+
+These ports avoid a conflict with WebODM when it is already using port 8000.
+
 Set `MOTEL_POS_IMAGE` and `ROOM_PULSE_IMAGE` in `motel-stack/.env` to immutable release tags such
 as `:v1.0.0` for repeatable production deployments. Leave them empty to use `:latest`.
 
